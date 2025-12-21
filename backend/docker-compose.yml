@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sps-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sps_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      PGTZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5434:5432"
+    volumes:
+      - sps_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sps_postgres_data:
+    driver: local
+
