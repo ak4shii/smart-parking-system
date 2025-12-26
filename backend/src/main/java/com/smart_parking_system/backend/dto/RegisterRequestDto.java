@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 public class RegisterRequestDto {
 
-
     @NotBlank(message = "Display name is required")
     @Size(min = 8, max = 50, message = "Display name length must be between 8 and 50 characters")
     private String username;

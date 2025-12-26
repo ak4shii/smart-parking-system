@@ -4,16 +4,13 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
-import java.time.Instant;
-
 @Getter
 @Setter
 @ToString
-public class UserDto {
-    
+public class ParkingSpaceDto {
+
     private Integer id;
-    private String username;
-    private String email;
-    private String role;
-    private Instant createdAt;
+    private String name;
+    private String location;
+    private String owner;
 }

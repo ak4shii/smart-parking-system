@@ -20,4 +20,7 @@ public class ParkingSpace {
 
     @Column(name = "location", length = Integer.MAX_VALUE)
     private String location;
+
+    @Column(name = "owner", nullable = false, length = Integer.MAX_VALUE)
+    private String owner;
 }

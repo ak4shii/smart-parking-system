@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
@@ -43,6 +42,7 @@ public class SecurityConfig {
         return http.csrf((csrfConfig) -> csrfConfig
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        .ignoringRequestMatchers("/api/**")
                         .ignoringRequestMatchers(publicPaths.toArray(new String[0]))
                 )
                 .cors((corsConfig) -> corsConfig.configurationSource(corsConfigurationSource()))
