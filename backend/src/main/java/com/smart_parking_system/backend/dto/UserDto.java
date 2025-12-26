@@ -11,11 +11,9 @@ import java.time.Instant;
 @ToString
 public class UserDto {
 
-    private Long id;
+    private Integer id;
     private String username;
     private String email;
-    private String passwordHash;
     private String role;
-    private Boolean enabled;
     private Instant createdAt;
 }

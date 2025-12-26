@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +55,9 @@ public class AuthController {
             var userDto = new UserDto();
             var loggedUser = (User) authentication.getPrincipal();
             BeanUtils.copyProperties(loggedUser, userDto);
+            userDto.setId(loggedUser.getId());
             userDto.setRole(loggedUser.getRole());
+            userDto.setCreatedAt(loggedUser.getCreatedAt());
             String jwtToken = jwtUtil.generateJwtToken(authentication);
 
             return ResponseEntity.status(HttpStatus.OK)
@@ -94,7 +97,9 @@ public class AuthController {
         user.setPasswordHash(passwordEncoder.encode(registerRequestDto.getPassword()));
         user.setRole("ROLE_USER");
         user.setEnabled(true);
-        userRepository.save(user);
+        user.setCreatedAt(Instant.now());
+        User savedUser = userRepository.save(user);
+        userRepository.flush();
         return ResponseEntity.status(HttpStatus.CREATED).body("Register successfully");
     }
 
