@@ -448,3 +448,50 @@ org.postgresql.util.PSQLException: ERROR: relation "user" does not exist
 2025-12-27T02:41:51.759+07:00  INFO 29976 --- [backend] [SpringApplicationShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
 2025-12-27T02:41:51.763+07:00  INFO 29976 --- [backend] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
 2025-12-27T02:41:51.766+07:00  INFO 29976 --- [backend] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2025-12-27T10:50:24.882+07:00  INFO 1704 --- [backend] [restartedMain] c.s.backend.BackendApplication           : Starting BackendApplication using Java 22.0.2 with PID 1704 (C:\Users\admin\OneDrive\Documents\smart-parking-system\backend\target\classes started by admin in C:\Users\admin\OneDrive\Documents\smart-parking-system\backend)
+2025-12-27T10:50:24.884+07:00  INFO 1704 --- [backend] [restartedMain] c.s.backend.BackendApplication           : No active profile set, falling back to 1 default profile: "default"
+2025-12-27T10:50:24.940+07:00  INFO 1704 --- [backend] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-12-27T10:50:24.941+07:00  INFO 1704 --- [backend] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-12-27T10:50:24.961+07:00  INFO 1704 --- [backend] [restartedMain] .s.b.d.c.l.DockerComposeLifecycleManager : Using Docker Compose file C:\Users\admin\OneDrive\Documents\smart-parking-system\backend\docker-compose.yml
+2025-12-27T10:50:26.487+07:00  INFO 1704 --- [backend] [restartedMain] .s.b.d.c.l.DockerComposeLifecycleManager : There are already Docker Compose services running, skipping startup
+2025-12-27T10:50:27.906+07:00  INFO 1704 --- [backend] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-12-27T10:50:27.968+07:00  INFO 1704 --- [backend] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 52 ms. Found 4 JPA repository interfaces.
+2025-12-27T10:50:28.708+07:00  INFO 1704 --- [backend] [restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2025-12-27T10:50:28.722+07:00  INFO 1704 --- [backend] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-12-27T10:50:28.724+07:00  INFO 1704 --- [backend] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.46]
+2025-12-27T10:50:28.771+07:00  INFO 1704 --- [backend] [restartedMain] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-12-27T10:50:28.771+07:00  INFO 1704 --- [backend] [restartedMain] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2272 ms
+2025-12-27T10:50:29.169+07:00  INFO 1704 --- [backend] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-12-27T10:50:29.373+07:00  INFO 1704 --- [backend] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@71709201
+2025-12-27T10:50:29.375+07:00  INFO 1704 --- [backend] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-12-27T10:50:29.424+07:00  INFO 1704 --- [backend] [restartedMain] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-12-27T10:50:29.521+07:00  INFO 1704 --- [backend] [restartedMain] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.29.Final
+2025-12-27T10:50:29.575+07:00  INFO 1704 --- [backend] [restartedMain] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-12-27T10:50:29.942+07:00  INFO 1704 --- [backend] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-12-27T10:50:30.072+07:00  INFO 1704 --- [backend] [restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 16.11
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-12-27T10:50:31.168+07:00  INFO 1704 --- [backend] [restartedMain] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-12-27T10:50:31.171+07:00  INFO 1704 --- [backend] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-12-27T10:50:31.823+07:00  INFO 1704 --- [backend] [restartedMain] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-12-27T10:50:32.397+07:00  WARN 1704 --- [backend] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-12-27T10:50:32.711+07:00  INFO 1704 --- [backend] [restartedMain] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 14 endpoints beneath base path '/sps/actuator'
+2025-12-27T10:50:32.745+07:00  INFO 1704 --- [backend] [restartedMain] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name emailAndPasswordAuthentication
+2025-12-27T10:50:33.298+07:00  INFO 1704 --- [backend] [restartedMain] o.s.b.d.a.OptionalLiveReloadServer       : LiveReload server is running on port 35729
+2025-12-27T10:50:33.375+07:00  INFO 1704 --- [backend] [restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2025-12-27T10:50:33.387+07:00  INFO 1704 --- [backend] [restartedMain] c.s.backend.BackendApplication           : Started BackendApplication in 9.147 seconds (process running for 10.291)
+2025-12-27T10:50:34.028+07:00  INFO 1704 --- [backend] [RMI TCP Connection(2)-192.168.0.4] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-12-27T10:50:34.028+07:00  INFO 1704 --- [backend] [RMI TCP Connection(2)-192.168.0.4] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-12-27T10:50:34.030+07:00  INFO 1704 --- [backend] [RMI TCP Connection(2)-192.168.0.4] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2025-12-27T10:50:43.234+07:00  WARN 1704 --- [backend] [http-nio-8080-exec-1] o.a.c.util.SessionIdGeneratorBase        : Creation of SecureRandom instance for session ID generation using [SHA1PRNG] took [109] milliseconds.
+2025-12-27T10:50:56.621+07:00  INFO 1704 --- [backend] [http-nio-8080-exec-10] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 444 ms
+2025-12-27T11:05:11.298+07:00  INFO 1704 --- [backend] [SpringApplicationShutdownHook] o.s.b.w.e.tomcat.GracefulShutdown        : Commencing graceful shutdown. Waiting for active requests to complete
+2025-12-27T11:05:11.305+07:00  INFO 1704 --- [backend] [tomcat-shutdown] o.s.b.w.e.tomcat.GracefulShutdown        : Graceful shutdown complete
+2025-12-27T11:05:11.312+07:00  INFO 1704 --- [backend] [SpringApplicationShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-12-27T11:05:11.315+07:00  INFO 1704 --- [backend] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-12-27T11:05:11.319+07:00  INFO 1704 --- [backend] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
