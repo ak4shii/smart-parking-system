@@ -9,15 +9,12 @@ import java.time.Instant;
 @Getter
 @Setter
 @ToString
-public class MicrocontrollerDto {
-
+public class EntryLogDto {
     private Integer id;
-    private String mcCode;
-    private String name;
-    private Boolean online;
-    private Long uptimeSec;
-    private Instant lastSeen;
+    private Integer rfidId;
+    private String rfidCode;
+    private String licensePlate;
+    private Instant inTime;
+    private Instant outTime;
     private Integer parkingSpaceId;
 }
-
-

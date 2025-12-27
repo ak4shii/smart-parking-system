@@ -19,3 +19,4 @@ public interface ISensorService {
     void deleteSensor(Integer id);
 }
 
+

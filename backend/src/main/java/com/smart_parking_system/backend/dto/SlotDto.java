@@ -14,3 +14,4 @@ public class SlotDto {
     private Boolean isOccupied;
 }
 
+

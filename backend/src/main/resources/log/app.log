@@ -582,3 +582,9 @@ org.postgresql.util.PSQLException: ERROR: relation "user" does not exist
 2025-12-27T11:27:08.877+07:00  INFO 11360 --- [backend] [RMI TCP Connection(3)-192.168.0.4] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
 2025-12-27T11:27:08.879+07:00  INFO 11360 --- [backend] [RMI TCP Connection(3)-192.168.0.4] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
 2025-12-27T11:27:25.046+07:00  INFO 11360 --- [backend] [http-nio-8080-exec-8] o.springdoc.api.AbstractOpenApiResource  : Init duration for springdoc-openapi is: 612 ms
+2025-12-27T17:20:44.551+07:00  WARN 11360 --- [backend] [HikariPool-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=4h17m7s514ms596µs).
+2025-12-27T18:02:42.819+07:00  INFO 11360 --- [backend] [SpringApplicationShutdownHook] o.s.b.w.e.tomcat.GracefulShutdown        : Commencing graceful shutdown. Waiting for active requests to complete
+2025-12-27T18:02:42.831+07:00  INFO 11360 --- [backend] [tomcat-shutdown] o.s.b.w.e.tomcat.GracefulShutdown        : Graceful shutdown complete
+2025-12-27T18:02:42.849+07:00  INFO 11360 --- [backend] [SpringApplicationShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-12-27T18:02:42.853+07:00  INFO 11360 --- [backend] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2025-12-27T18:02:42.860+07:00  INFO 11360 --- [backend] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.

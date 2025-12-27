@@ -23,10 +23,6 @@ public class EntryLog {
     @JoinColumn(name = "rfid_id", nullable = false)
     private Rfid rfid;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "slot_id")
-    private Slot slot;
-
     @Column(name = "license_plate", length = Integer.MAX_VALUE)
     private String licensePlate;
 

@@ -16,3 +16,4 @@ public class UpdateSensorRequestDto {
     private String type;
 }
 
+

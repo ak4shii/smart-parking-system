@@ -16,3 +16,4 @@ public class CreateRfidRequestDto {
     private Integer parkingSpaceId;
 }
 
+

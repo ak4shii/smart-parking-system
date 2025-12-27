@@ -49,7 +49,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests((requests) -> {
                     publicPaths.forEach(path ->
                             requests.requestMatchers(path).permitAll());
-                    requests.requestMatchers("/admins/**").hasRole("ADMIN");
+                    requests.requestMatchers("/api/admins/**").hasRole("ADMIN");
                     requests.anyRequest().authenticated();
                 })
                 .addFilterBefore(new JWTTokenValidationFilter(publicPaths), BasicAuthenticationFilter.class)
