@@ -10,3 +10,4 @@ public class TransferParkingSpaceOwnershipRequestDto {
     private Integer newOwnerUserId;
 }
 
+

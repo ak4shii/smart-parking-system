@@ -12,3 +12,4 @@ public class AddParkingSpaceManagerRequestDto {
     private String email;
 }
 
+
