@@ -42,18 +42,10 @@ public class User {
     @Column(name = "created_at")
     private Instant createdAt;
 
-    @Column(name = "updated_at")
-    private Instant updatedAt;
-
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
             createdAt = Instant.now();
         }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = Instant.now();
     }
 }

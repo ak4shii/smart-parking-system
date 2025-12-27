@@ -5,6 +5,7 @@ import com.smart_parking_system.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -31,6 +32,10 @@ public class EmailAndPasswordAuthentication implements AuthenticationProvider {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "User not found with email: " + email + ". Please register.")
                 );
+
+        if (Boolean.FALSE.equals(user.getEnabled())) {
+            throw new DisabledException("User account is disabled");
+        }
 
         String role = user.getRole();
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));

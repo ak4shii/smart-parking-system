@@ -17,3 +17,4 @@ public class SensorDto {
     private Integer parkingSpaceId;
 }
 
+

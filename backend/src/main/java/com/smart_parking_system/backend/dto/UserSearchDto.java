@@ -7,12 +7,10 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class ParkingSpaceManagerDto {
+public class UserSearchDto {
     
     private Integer id;
     private String username;
     private String email;
 }
-
-
 
