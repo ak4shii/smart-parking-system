@@ -1,13 +1,9 @@
 package com.smart_parking_system.backend.service.impl;
 
-import com.smart_parking_system.backend.dto.CreateEntryRequestDto;
 import com.smart_parking_system.backend.dto.EntryLogDto;
-import com.smart_parking_system.backend.dto.ExitRequestDto;
 import com.smart_parking_system.backend.entity.EntryLog;
-import com.smart_parking_system.backend.entity.Rfid;
 import com.smart_parking_system.backend.entity.User;
 import com.smart_parking_system.backend.repository.EntryLogRepository;
-import com.smart_parking_system.backend.repository.RfidRepository;
 import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.IEntryLogService;
@@ -15,9 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,68 +20,8 @@ import java.util.stream.Collectors;
 public class EntryLogServiceImpl implements IEntryLogService {
 
     private final EntryLogRepository entryLogRepository;
-    private final RfidRepository rfidRepository;
     private final UserParkingSpaceRepository userParkingSpaceRepository;
     private final UserRepository userRepository;
-
-    @Override
-    @Transactional
-    public EntryLogDto createEntry(CreateEntryRequestDto requestDto) {
-        User currentUser = getCurrentUser();
-
-        Rfid rfid = rfidRepository.findByRfidCode(requestDto.getRfidCode())
-                .orElseThrow(() -> new RuntimeException("RFID not found"));
-
-        Integer psId = rfid.getPs().getId();
-        requireMembership(currentUser.getId(), psId);
-
-        if (Boolean.TRUE.equals(rfid.getCurrentlyUsed())) {
-            throw new RuntimeException("This RFID is currently used");
-        }
-
-        entryLogRepository.findActiveByRfidId(rfid.getId()).ifPresent(active -> {
-            throw new RuntimeException("This RFID already has an active entry log");
-        });
-
-        EntryLog entryLog = new EntryLog();
-        entryLog.setRfid(rfid);
-        entryLog.setLicensePlate(requestDto.getLicensePlate());
-        entryLog.setInTime(Instant.now());
-        entryLog.setOutTime(null);
-
-        rfid.setCurrentlyUsed(true);
-        rfidRepository.save(rfid);
-
-        EntryLog saved = entryLogRepository.save(entryLog);
-        entryLogRepository.flush();
-
-        return toDto(saved);
-    }
-
-    @Override
-    @Transactional
-    public EntryLogDto exit(ExitRequestDto requestDto) {
-        User currentUser = getCurrentUser();
-
-        Rfid rfid = rfidRepository.findByRfidCode(requestDto.getRfidCode())
-                .orElseThrow(() -> new RuntimeException("RFID not found"));
-
-        Integer psId = rfid.getPs().getId();
-        requireMembership(currentUser.getId(), psId);
-
-        EntryLog active = entryLogRepository.findActiveByRfidId(rfid.getId())
-                .orElseThrow(() -> new RuntimeException("No active entry log for this RFID"));
-
-        active.setOutTime(Instant.now());
-
-        rfid.setCurrentlyUsed(false);
-        rfidRepository.save(rfid);
-
-        EntryLog saved = entryLogRepository.save(active);
-        entryLogRepository.flush();
-
-        return toDto(saved);
-    }
 
     @Override
     public EntryLogDto getEntryLogById(Integer id) {
@@ -144,3 +78,6 @@ public class EntryLogServiceImpl implements IEntryLogService {
         return dto;
     }
 }
+
+
+

@@ -9,3 +9,5 @@ public interface LcdRepository extends JpaRepository<Lcd, Integer> {
     
 }
 
+
+
