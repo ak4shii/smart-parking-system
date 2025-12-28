@@ -8,3 +8,6 @@ public interface SensorRepository extends JpaRepository<Sensor, Integer> {
 }
 
 
+
+
+

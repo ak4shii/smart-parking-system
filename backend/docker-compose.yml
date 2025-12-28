@@ -12,11 +12,23 @@ services:
       - "5434:5432"
     volumes:
       - sps_postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: sps-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
 
 volumes:
   sps_postgres_data:
