@@ -102,3 +102,38 @@ To fix this, use `chmod 0700 /mosquitto/config/passwords`.
 1766911524: Opening ipv6 listen socket on port 1883.
 1766911524: mosquitto version 2.0.22 running
 1766925903: Saving in-memory database to /mosquitto/data/mosquitto.db.
+1766927143: mosquitto version 2.0.22 starting
+1766927143: Config loaded from /mosquitto/config/mosquitto.conf.
+1766927143: Warning: File /mosquitto/config/passwords has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/passwords`.
+1766927143: Opening ipv4 listen socket on port 1883.
+1766927143: Opening ipv6 listen socket on port 1883.
+1766927143: mosquitto version 2.0.22 running
+1766927779: mosquitto version 2.0.22 terminating
+1766927779: Saving in-memory database to /mosquitto/data/mosquitto.db.
+1766927786: mosquitto version 2.0.22 starting
+1766927786: Config loaded from /mosquitto/config/mosquitto.conf.
+1766927786: Warning: File /mosquitto/config/passwords has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/passwords`.
+1766927786: Opening ipv4 listen socket on port 1883.
+1766927786: Opening ipv6 listen socket on port 1883.
+1766927786: mosquitto version 2.0.22 running
+1766927893: mosquitto version 2.0.22 terminating
+1766927893: Saving in-memory database to /mosquitto/data/mosquitto.db.
+1766927926: mosquitto version 2.0.22 starting
+1766927926: Config loaded from /mosquitto/config/mosquitto.conf.
+1766927926: Warning: File /mosquitto/config/passwords has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/passwords`.
+1766927926: Opening ipv4 listen socket on port 1883.
+1766927926: Opening ipv6 listen socket on port 1883.
+1766927926: mosquitto version 2.0.22 running
+1766928463: mosquitto version 2.0.22 terminating
+1766928463: Saving in-memory database to /mosquitto/data/mosquitto.db.
+1766928468: mosquitto version 2.0.22 starting
+1766928468: Config loaded from /mosquitto/config/mosquitto.conf.
+1766928468: Warning: File /mosquitto/config/passwords has world readable permissions. Future versions will refuse to load this file.
+To fix this, use `chmod 0700 /mosquitto/config/passwords`.
+1766928468: Opening ipv4 listen socket on port 1883.
+1766928468: Opening ipv6 listen socket on port 1883.
+1766928468: mosquitto version 2.0.22 running
+1766930269: Saving in-memory database to /mosquitto/data/mosquitto.db.

@@ -41,6 +41,10 @@ public class EntryLogServiceImpl implements IEntryLogService {
         Integer psId = rfid.getPs().getId();
         requireMembership(currentUser.getId(), psId);
 
+        if (Boolean.TRUE.equals(rfid.getCurrentlyUsed())) {
+            throw new RuntimeException("This RFID is currently used");
+        }
+
         entryLogRepository.findActiveByRfidId(rfid.getId()).ifPresent(active -> {
             throw new RuntimeException("This RFID already has an active entry log");
         });
@@ -50,6 +54,9 @@ public class EntryLogServiceImpl implements IEntryLogService {
         entryLog.setLicensePlate(requestDto.getLicensePlate());
         entryLog.setInTime(Instant.now());
         entryLog.setOutTime(null);
+
+        rfid.setCurrentlyUsed(true);
+        rfidRepository.save(rfid);
 
         EntryLog saved = entryLogRepository.save(entryLog);
         entryLogRepository.flush();
@@ -72,6 +79,9 @@ public class EntryLogServiceImpl implements IEntryLogService {
                 .orElseThrow(() -> new RuntimeException("No active entry log for this RFID"));
 
         active.setOutTime(Instant.now());
+
+        rfid.setCurrentlyUsed(false);
+        rfidRepository.save(rfid);
 
         EntryLog saved = entryLogRepository.save(active);
         entryLogRepository.flush();
