@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 
 import logo from '../assets/logo.png';
 import illustration from '../assets/illustration-1.png';
@@ -19,7 +18,6 @@ const inputBase: React.CSSProperties = {
 };
 
 export default function LoginPage() {
-  const navigate = useNavigate();
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -35,11 +33,10 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      await login(email.trim(), password);
-      toast.success('Signed in');
-      navigate('/', { replace: true });
+      await login({ email: email.trim(), password });
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to sign in');
+      // AuthContext handles toast messages; keeping a silent fallback here helps debugging.
+      console.error(err);
     } finally {
       setLoading(false);
     }
