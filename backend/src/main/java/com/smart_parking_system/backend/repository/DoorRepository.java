@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DoorRepository extends JpaRepository<Door, Integer> {
     
+    java.util.Optional<Door> findByMcIdAndName(Integer mcId, String name);
 }
 
 

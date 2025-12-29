@@ -46,7 +46,7 @@ public class MqttConfig {
     }
 
     @Bean
-    public MessageChannel mqttInputChannel() {
+    public MessageChannel mqttEntryLogInputChannel() {
         return new DirectChannel();
     }
 
@@ -56,11 +56,35 @@ public class MqttConfig {
     }
 
     @Bean
+    public MessageChannel mqttMicrocontrollerInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageChannel mqttDoorInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageChannel mqttLcdInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageChannel mqttProvisionInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageChannel mqttSensorInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
     public MessageProducer inbound() {
         String[] topics = {
             baseTopic + "/+/entry/request",
-            baseTopic + "/+/exit/request",
-            baseTopic + "/+/status"
+            baseTopic + "/+/exit/request"
         };
         
         MqttPahoMessageDrivenChannelAdapter adapter =
@@ -72,7 +96,82 @@ public class MqttConfig {
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
-        adapter.setOutputChannel(mqttInputChannel());
+        adapter.setOutputChannel(mqttEntryLogInputChannel());
+        return adapter;
+    }
+
+    @Bean
+    public MessageProducer statusInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+            new MqttPahoMessageDrivenChannelAdapter(
+                clientId + "-status-inbound",
+                mqttClientFactory(),
+                baseTopic + "/+/status"
+            );
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttMicrocontrollerInputChannel());
+        return adapter;
+    }
+
+    @Bean
+    public MessageProducer doorInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+            new MqttPahoMessageDrivenChannelAdapter(
+                clientId + "-door-inbound",
+                mqttClientFactory(),
+                baseTopic + "/+/door/status"
+            );
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttDoorInputChannel());
+        return adapter;
+    }
+
+    @Bean
+    public MessageProducer lcdInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+            new MqttPahoMessageDrivenChannelAdapter(
+                clientId + "-lcd-inbound",
+                mqttClientFactory(),
+                baseTopic + "/+/lcd/status"
+            );
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttLcdInputChannel());
+        return adapter;
+    }
+
+    @Bean
+    public MessageProducer provisionInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+            new MqttPahoMessageDrivenChannelAdapter(
+                clientId + "-provision-inbound",
+                mqttClientFactory(),
+                baseTopic + "/+/provision/request"
+            );
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttProvisionInputChannel());
+        return adapter;
+    }
+
+    @Bean
+    public MessageProducer sensorInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+            new MqttPahoMessageDrivenChannelAdapter(
+                clientId + "-sensor-inbound",
+                mqttClientFactory(),
+                baseTopic + "/+/sensor/status"
+            );
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttSensorInputChannel());
         return adapter;
     }
 

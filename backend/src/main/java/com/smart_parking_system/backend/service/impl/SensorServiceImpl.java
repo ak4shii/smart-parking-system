@@ -145,6 +145,7 @@ public class SensorServiceImpl implements ISensorService {
         dto.setType(sensor.getType());
         if (sensor.getSlot() != null) {
             dto.setSlotId(sensor.getSlot().getId());
+            dto.setSlotName(sensor.getSlot().getName());
             if (sensor.getSlot().getPs() != null) {
                 dto.setParkingSpaceId(sensor.getSlot().getPs().getId());
             }

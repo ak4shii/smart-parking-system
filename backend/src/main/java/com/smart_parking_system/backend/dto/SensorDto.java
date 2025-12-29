@@ -13,6 +13,7 @@ public class SensorDto {
     private String name;
     private String type;
     private Integer slotId;
+    private String slotName;
     private Integer microcontrollerId;
     private Integer parkingSpaceId;
 }
