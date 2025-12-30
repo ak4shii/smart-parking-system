@@ -6,6 +6,8 @@ import RegisterPage from './pages/RegisterPage.tsx';
 import HomePage from './pages/HomePage';
 import DevicesPage from './pages/DevicesPage';
 import RfidPage from './pages/RfidPage';
+import DoorPage from './pages/DoorPage';
+import LcdPage from './pages/LcdPage';
 import AdminPage from './pages/AdminPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -37,6 +39,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <RfidPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/doors"
+            element={
+              <ProtectedRoute>
+                <DoorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lcds"
+            element={
+              <ProtectedRoute>
+                <LcdPage />
               </ProtectedRoute>
             }
           />
