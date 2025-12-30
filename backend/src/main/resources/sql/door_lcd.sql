@@ -31,4 +31,4 @@ CREATE INDEX IF NOT EXISTS idx_lcd_mc_id ON lcd (mc_id);
 
 Insert into door (name, is_opened, mc_id) values ('Main Entrance', true, 1);
 Insert into door (name, is_opened, mc_id) values ('Exit', true, 1);
-Insert into lcd (name, display, mc_id) values ('Lobby Display', 'Welcome to Smart Parking', 1);
+Insert into lcd (name, display, mc_id) values ('Lobby Display', 'Welcome to Raumanian', 1);

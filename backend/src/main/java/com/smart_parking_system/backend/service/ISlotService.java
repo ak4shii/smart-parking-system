@@ -14,6 +14,14 @@ public interface ISlotService {
     List<SlotDto> getAllSlotsByMyParkingSpaces();
 
     void deleteSlot(Integer id);
+
+    /**
+     * Updates a slot's occupied status and notifies all connected clients.
+     * @param slotId The ID of the slot to update
+     * @param isOccupied The new occupied status
+     * @return The updated slot DTO
+     */
+    SlotDto updateSlotStatus(Integer slotId, Boolean isOccupied);
 }
 
 
