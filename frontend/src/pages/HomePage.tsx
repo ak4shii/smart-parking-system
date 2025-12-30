@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Gauge, KeyRound, LayoutDashboard, LogOut, ParkingSquare, Radio, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Car, Gauge, KeyRound, LayoutDashboard, LogOut, ParkingSquare, Radio, ShieldCheck, ChevronDown, DoorOpen, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import OccupancyGrid from '../components/home/OccupancyGrid';
@@ -130,6 +130,20 @@ export default function HomePage() {
             >
               <KeyRound className="h-4 w-4" />
               <span>RFID</span>
+            </button>
+            <button
+              onClick={() => navigate('/doors')}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              <DoorOpen className="h-4 w-4" />
+              <span>Doors</span>
+            </button>
+            <button
+              onClick={() => navigate('/lcds')}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              <Monitor className="h-4 w-4" />
+              <span>LCDs</span>
             </button>
             <button
               onClick={() => navigate('/admin')}
