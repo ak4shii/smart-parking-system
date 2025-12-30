@@ -13,3 +13,4 @@ public class MqttSensorStatusDto {
     private Boolean isOccupied;
 }
 
+
