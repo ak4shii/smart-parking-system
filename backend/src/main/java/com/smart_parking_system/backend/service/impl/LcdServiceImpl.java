@@ -12,6 +12,7 @@ import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.ILcdService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -39,15 +40,25 @@ public class LcdServiceImpl implements ILcdService {
 
         requireMembership(currentUser.getId(), mc.getPs().getId());
 
+        String normalizedName = requestDto.getName() == null ? null : requestDto.getName().trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("LCD name is required");
+        }
+        if (lcdRepository.existsByName(normalizedName)) {
+            throw new RuntimeException("LCD name already exists: " + normalizedName);
+        }
+
         Lcd lcd = new Lcd();
-        lcd.setName(requestDto.getName());
+        lcd.setName(normalizedName);
         lcd.setDisplayText(requestDto.getDisplayText());
         lcd.setMc(mc);
 
-        Lcd saved = lcdRepository.save(lcd);
-        lcdRepository.flush();
-
-        return toDto(saved);
+        try {
+            Lcd saved = lcdRepository.saveAndFlush(lcd);
+            return toDto(saved);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("LCD name already exists: " + normalizedName, e);
+        }
     }
 
     @Override
@@ -87,16 +98,25 @@ public class LcdServiceImpl implements ILcdService {
         requireMembership(currentUser.getId(), lcd.getMc().getPs().getId());
 
         if (requestDto.getName() != null) {
-            lcd.setName(requestDto.getName());
+            String normalizedName = requestDto.getName().trim();
+            if (normalizedName.isEmpty()) {
+                throw new RuntimeException("LCD name cannot be empty");
+            }
+            if (!normalizedName.equals(lcd.getName()) && lcdRepository.existsByName(normalizedName)) {
+                throw new RuntimeException("LCD name already exists: " + normalizedName);
+            }
+            lcd.setName(normalizedName);
         }
         if (requestDto.getDisplayText() != null) {
             lcd.setDisplayText(requestDto.getDisplayText());
         }
 
-        Lcd saved = lcdRepository.save(lcd);
-        lcdRepository.flush();
-
-        return toDto(saved);
+        try {
+            Lcd saved = lcdRepository.saveAndFlush(lcd);
+            return toDto(saved);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("LCD name already exists: " + lcd.getName(), e);
+        }
     }
 
     @Override

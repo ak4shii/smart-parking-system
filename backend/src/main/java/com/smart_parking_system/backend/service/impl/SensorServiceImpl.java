@@ -14,6 +14,7 @@ import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.ISensorService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -52,16 +53,28 @@ public class SensorServiceImpl implements ISensorService {
 
         requireMembership(currentUser.getId(), psIdFromSlot);
 
+        String normalizedName = requestDto.getName() == null ? null : requestDto.getName().trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("Sensor name is required");
+        }
+        if (sensorRepository.existsByName(normalizedName)) {
+            throw new RuntimeException("Sensor name already exists: " + normalizedName);
+        }
+
         Sensor sensor = new Sensor();
-        sensor.setName(requestDto.getName());
-        sensor.setType(requestDto.getType());
+        sensor.setName(normalizedName);
+        if (requestDto.getType() != null) {
+            sensor.setType(requestDto.getType());
+        }
         sensor.setSlot(slot);
         sensor.setMc(mc);
 
-        Sensor saved = sensorRepository.save(sensor);
-        sensorRepository.flush();
-
-        return toDto(saved);
+        try {
+            Sensor saved = sensorRepository.saveAndFlush(sensor);
+            return toDto(saved);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("Sensor name already exists: " + normalizedName, e);
+        }
     }
 
     @Override
@@ -102,13 +115,27 @@ public class SensorServiceImpl implements ISensorService {
         Integer psId = sensor.getSlot().getPs().getId();
         requireMembership(currentUser.getId(), psId);
 
-        sensor.setName(requestDto.getName());
-        sensor.setType(requestDto.getType());
+        if (requestDto.getName() != null) {
+            String normalizedName = requestDto.getName().trim();
+            if (normalizedName.isEmpty()) {
+                throw new RuntimeException("Sensor name cannot be empty");
+            }
+            if (!normalizedName.equals(sensor.getName()) && sensorRepository.existsByName(normalizedName)) {
+                throw new RuntimeException("Sensor name already exists: " + normalizedName);
+            }
+            sensor.setName(normalizedName);
+        }
 
-        Sensor saved = sensorRepository.save(sensor);
-        sensorRepository.flush();
+        if (requestDto.getType() != null) {
+            sensor.setType(requestDto.getType());
+        }
 
-        return toDto(saved);
+        try {
+            Sensor saved = sensorRepository.saveAndFlush(sensor);
+            return toDto(saved);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("Sensor name already exists: " + sensor.getName(), e);
+        }
     }
 
     @Override

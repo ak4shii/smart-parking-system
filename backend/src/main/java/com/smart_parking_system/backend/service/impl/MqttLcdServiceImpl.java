@@ -60,6 +60,10 @@ public class MqttLcdServiceImpl implements IMqttLcdService {
         Lcd lcd = lcdRepository.findById(status.getLcdId())
                 .orElseThrow(() -> new RuntimeException("LCD not found with id: " + status.getLcdId()));
 
+        if (lcd.getMc() == null || lcd.getMc().getMcCode() == null || !lcd.getMc().getMcCode().equals(mcCode)) {
+            throw new RuntimeException("LCD does not belong to microcontroller: " + mcCode);
+        }
+
         if (status.getDisplayText() != null) {
             lcd.setDisplayText(status.getDisplayText());
         }

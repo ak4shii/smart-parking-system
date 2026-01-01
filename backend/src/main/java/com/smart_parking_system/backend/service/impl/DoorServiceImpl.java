@@ -12,6 +12,7 @@ import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.IDoorService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -39,15 +40,25 @@ public class DoorServiceImpl implements IDoorService {
 
         requireMembership(currentUser.getId(), mc.getPs().getId());
 
+        String normalizedName = requestDto.getName() == null ? null : requestDto.getName().trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("Door name is required");
+        }
+        if (doorRepository.existsByName(normalizedName)) {
+            throw new RuntimeException("Door name already exists: " + normalizedName);
+        }
+
         Door door = new Door();
-        door.setName(requestDto.getName());
+        door.setName(normalizedName);
         door.setIsOpened(requestDto.getIsOpened() != null ? requestDto.getIsOpened() : Boolean.FALSE);
         door.setMc(mc);
 
-        Door saved = doorRepository.save(door);
-        doorRepository.flush();
-
-        return toDto(saved);
+        try {
+            Door saved = doorRepository.saveAndFlush(door);
+            return toDto(saved);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("Door name already exists: " + normalizedName, e);
+        }
     }
 
     @Override
@@ -87,16 +98,25 @@ public class DoorServiceImpl implements IDoorService {
         requireMembership(currentUser.getId(), door.getMc().getPs().getId());
 
         if (requestDto.getName() != null) {
-            door.setName(requestDto.getName());
+            String normalizedName = requestDto.getName().trim();
+            if (normalizedName.isEmpty()) {
+                throw new RuntimeException("Door name cannot be empty");
+            }
+            if (!normalizedName.equals(door.getName()) && doorRepository.existsByName(normalizedName)) {
+                throw new RuntimeException("Door name already exists: " + normalizedName);
+            }
+            door.setName(normalizedName);
         }
         if (requestDto.getIsOpened() != null) {
             door.setIsOpened(requestDto.getIsOpened());
         }
 
-        Door saved = doorRepository.save(door);
-        doorRepository.flush();
-
-        return toDto(saved);
+        try {
+            Door saved = doorRepository.saveAndFlush(door);
+            return toDto(saved);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("Door name already exists: " + door.getName(), e);
+        }
     }
 
     @Override

@@ -16,7 +16,7 @@ public class Lcd {
     @Column(name = "lcd_id", nullable = false)
     private Integer id;
 
-    @Column(name = "name", length = Integer.MAX_VALUE)
+    @Column(name = "name", length = Integer.MAX_VALUE, unique = true)
     private String name;
 
     @Column(name = "display", length = Integer.MAX_VALUE)

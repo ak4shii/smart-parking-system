@@ -44,6 +44,7 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
             for (MqttProvisionRequestDto.ComponentDto doorDto : request.getDoors()) {
                 Door door = findOrCreateDoor(mc, doorDto.getName());
                 doorRepository.save(door);
+                doorRepository.saveAndFlush(door);
                 doorResponses.add(new MqttProvisionResponseDto.ComponentResponseDto(door.getId(), door.getName()));
             }
         }
@@ -52,6 +53,7 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
             for (MqttProvisionRequestDto.ComponentDto lcdDto : request.getLcds()) {
                 Lcd lcd = findOrCreateLcd(mc, lcdDto.getName());
                 lcdRepository.save(lcd);
+                lcdRepository.saveAndFlush(lcd);
                 lcdResponses.add(new MqttProvisionResponseDto.ComponentResponseDto(lcd.getId(), lcd.getName()));
             }
         }
@@ -68,14 +70,11 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
                 }
                 
                 Sensor sensor = findOrCreateSensor(mc, sensorDto, slot);
-                sensorRepository.save(sensor);
+                sensorRepository.saveAndFlush(sensor);
                 sensorResponses.add(new MqttProvisionResponseDto.ComponentResponseDto(sensor.getId(), sensor.getName()));
             }
         }
 
-        doorRepository.flush();
-        lcdRepository.flush();
-        sensorRepository.flush();
 
         return new MqttProvisionResponseDto(
                 true,
@@ -87,10 +86,24 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
     }
 
     private Door findOrCreateDoor(Microcontroller mc, String name) {
-        return doorRepository.findByMcIdAndName(mc.getId(), name)
+        String normalizedName = name == null ? null : name.trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("Door name is required");
+        }
+
+        return doorRepository.findByName(normalizedName)
+                .map(existing -> {
+                    if (existing.getMc() != null && !existing.getMc().getId().equals(mc.getId())) {
+                        throw new RuntimeException("Door name already exists and is assigned to another microcontroller: " + normalizedName);
+                    }
+                    if (existing.getMc() == null) {
+                        existing.setMc(mc);
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> {
                     Door door = new Door();
-                    door.setName(name);
+                    door.setName(normalizedName);
                     door.setMc(mc);
                     door.setIsOpened(false);
                     return door;
@@ -98,10 +111,24 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
     }
 
     private Lcd findOrCreateLcd(Microcontroller mc, String name) {
-        return lcdRepository.findByMcIdAndName(mc.getId(), name)
+        String normalizedName = name == null ? null : name.trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("LCD name is required");
+        }
+
+        return lcdRepository.findByName(normalizedName)
+                .map(existing -> {
+                    if (existing.getMc() != null && !existing.getMc().getId().equals(mc.getId())) {
+                        throw new RuntimeException("LCD name already exists and is assigned to another microcontroller: " + normalizedName);
+                    }
+                    if (existing.getMc() == null) {
+                        existing.setMc(mc);
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> {
                     Lcd lcd = new Lcd();
-                    lcd.setName(name);
+                    lcd.setName(normalizedName);
                     lcd.setMc(mc);
                     lcd.setDisplayText("");
                     return lcd;
@@ -125,10 +152,33 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
     }
 
     private Sensor findOrCreateSensor(Microcontroller mc, MqttProvisionRequestDto.SensorComponentDto sensorDto, Slot slot) {
-        return sensorRepository.findByMcIdAndSlotIdAndName(mc.getId(), slot.getId(), sensorDto.getName())
+        String normalizedName = sensorDto.getName() == null ? null : sensorDto.getName().trim();
+        if (normalizedName == null || normalizedName.isEmpty()) {
+            throw new RuntimeException("Sensor name is required");
+        }
+
+        return sensorRepository.findByName(normalizedName)
+                .map(existing -> {
+                    if (existing.getMc() != null && !existing.getMc().getId().equals(mc.getId())) {
+                        throw new RuntimeException("Sensor name already exists and is assigned to another microcontroller: " + normalizedName);
+                    }
+                    if (existing.getSlot() != null && !existing.getSlot().getId().equals(slot.getId())) {
+                        throw new RuntimeException("Sensor name already exists and is assigned to another slot: " + normalizedName);
+                    }
+                    if (existing.getMc() == null) {
+                        existing.setMc(mc);
+                    }
+                    if (existing.getSlot() == null) {
+                        existing.setSlot(slot);
+                    }
+                    if (sensorDto.getType() != null) {
+                        existing.setType(sensorDto.getType());
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> {
                     Sensor sensor = new Sensor();
-                    sensor.setName(sensorDto.getName());
+                    sensor.setName(normalizedName);
                     sensor.setType(sensorDto.getType());
                     sensor.setMc(mc);
                     sensor.setSlot(slot);

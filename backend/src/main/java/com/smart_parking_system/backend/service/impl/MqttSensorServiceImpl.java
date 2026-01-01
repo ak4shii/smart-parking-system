@@ -24,7 +24,10 @@ public class MqttSensorServiceImpl implements IMqttSensorService {
         Sensor sensor = sensorRepository.findById(status.getSensorId())
                 .orElseThrow(() -> new RuntimeException("Sensor not found with id: " + status.getSensorId()));
 
-        // Update slot occupancy based on sensor detection
+        if (sensor.getMc() == null || sensor.getMc().getMcCode() == null || !sensor.getMc().getMcCode().equals(mcCode)) {
+            throw new RuntimeException("Sensor does not belong to microcontroller: " + mcCode);
+        }
+
         if (status.getIsOccupied() != null && sensor.getSlot() != null) {
             Slot slot = sensor.getSlot();
             slot.setIsOccupied(status.getIsOccupied());

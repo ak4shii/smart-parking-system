@@ -60,6 +60,10 @@ public class MqttDoorServiceImpl implements IMqttDoorService {
         Door door = doorRepository.findById(status.getDoorId())
                 .orElseThrow(() -> new RuntimeException("Door not found with id: " + status.getDoorId()));
 
+        if (door.getMc() == null || door.getMc().getMcCode() == null || !door.getMc().getMcCode().equals(mcCode)) {
+            throw new RuntimeException("Door does not belong to microcontroller: " + mcCode);
+        }
+
         if (status.getIsOpened() != null) {
             door.setIsOpened(status.getIsOpened());
         }
