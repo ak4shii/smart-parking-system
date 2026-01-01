@@ -37,7 +37,7 @@ build/
 *.gz
 
 mosquitto/data/
-mosquitto/log/
+mosquitto/log/*.log
 mosquitto/config/passwords
 mosquitto/data/*.db
 mosquitto/data/*.db*

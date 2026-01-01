@@ -15,8 +15,6 @@ public class RealtimeEventPublisher {
 
     private final SimpMessagingTemplate messagingTemplate;
 
-    // Simple in-memory event id generator.
-    // If you need cross-restart replay, persist events in DB.
     private final AtomicLong eventIdSeq = new AtomicLong(0);
 
     public long nextEventId() {

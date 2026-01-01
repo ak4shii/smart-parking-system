@@ -1,9 +1,15 @@
 package com.smart_parking_system.backend.service.impl;
 
 import com.smart_parking_system.backend.dto.EntryLogDto;
+import com.smart_parking_system.backend.dto.mqtt.MqttEntryRequestDto;
+import com.smart_parking_system.backend.dto.mqtt.MqttEntryResponseDto;
+import com.smart_parking_system.backend.dto.mqtt.MqttExitRequestDto;
+import com.smart_parking_system.backend.dto.mqtt.MqttExitResponseDto;
 import com.smart_parking_system.backend.entity.EntryLog;
+import com.smart_parking_system.backend.entity.Rfid;
 import com.smart_parking_system.backend.entity.User;
 import com.smart_parking_system.backend.repository.EntryLogRepository;
+import com.smart_parking_system.backend.repository.RfidRepository;
 import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.IEntryLogService;
@@ -11,7 +17,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,11 +31,12 @@ public class EntryLogServiceImpl implements IEntryLogService {
     private final EntryLogRepository entryLogRepository;
     private final UserParkingSpaceRepository userParkingSpaceRepository;
     private final UserRepository userRepository;
-    private final com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher eventPublisher;
+    private final RfidRepository rfidRepository;
+    private final RealtimeEventPublisher eventPublisher;
 
     @Override
     @Transactional
-    public EntryLogDto createEntry(CreateEntryRequestDto requestDto) {
+    public MqttEntryResponseDto createEntry(MqttEntryRequestDto requestDto) {
         User currentUser = getCurrentUser();
 
         Rfid rfid = rfidRepository.findByRfidCode(requestDto.getRfidCode())
@@ -57,18 +67,22 @@ public class EntryLogServiceImpl implements IEntryLogService {
       
         eventPublisher.publishVehicleEntered(saved.getId(), saved.getLicensePlate(), rfid.getRfidCode(), psId);
 
-        return toDto(saved);
+        MqttEntryResponseDto responseDto = new MqttEntryResponseDto();
+        responseDto.setAllowed(true);
+        responseDto.setMessage("Allowed");
+        responseDto.setEntryLogId(saved.getId());
+        return responseDto;
     }
 
     @Override
     @Transactional
-    public EntryLogDto exit(ExitRequestDto requestDto) {
+    public MqttExitResponseDto exit(MqttExitRequestDto requestDto) {
         User currentUser = getCurrentUser();
 
         Rfid rfid = rfidRepository.findByRfidCode(requestDto.getRfidCode())
                 .orElseThrow(() -> new RuntimeException("RFID not found"));
       
-       EntryLog active = entryLogRepository.findActiveByRfidId(rfid.getId())
+        EntryLog active = entryLogRepository.findActiveByRfidId(rfid.getId())
                 .orElseThrow(() -> new RuntimeException("No active entry log for this RFID"));
 
         Integer psId = rfid.getPs().getId();
@@ -84,7 +98,12 @@ public class EntryLogServiceImpl implements IEntryLogService {
 
         eventPublisher.publishVehicleExited(saved.getId(), saved.getLicensePlate(), rfid.getRfidCode(), psId);
 
-        return toDto(saved);
+        MqttExitResponseDto responseDto = new MqttExitResponseDto();
+        responseDto.setEntryLogId(saved.getId());
+        responseDto.setMessage("Exited");
+        responseDto.setSuccess(true);
+
+        return responseDto;
     }
 
     @Override
