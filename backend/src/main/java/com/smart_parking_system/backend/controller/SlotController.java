@@ -49,6 +49,20 @@ public class SlotController {
         }
     }
 
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<SlotDto> updateSlotStatus(
+            @PathVariable Integer id,
+            @RequestParam("isOccupied") Boolean isOccupied
+    ) {
+        try {
+            return ResponseEntity.ok(slotService.updateSlotStatus(id, isOccupied));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSlot(@PathVariable Integer id) {
         try {

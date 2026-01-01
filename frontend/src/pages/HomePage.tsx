@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Gauge, KeyRound, LayoutDashboard, LogOut, ParkingSquare, Radio, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Car, Gauge, KeyRound, LayoutDashboard, LogOut, ParkingSquare, Radio, ShieldCheck, ChevronDown, DoorOpen, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import OccupancyGrid from '../components/home/OccupancyGrid';
@@ -9,6 +9,7 @@ import StatCard from '../components/home/StatCard';
 import { useAuth } from '../context/AuthContext';
 import slotService, { type SlotDto } from '../services/slotService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
+import { useWebSocket } from '../services/websocket';
 
 interface SlotDisplay {
   id: string;
@@ -17,14 +18,30 @@ interface SlotDisplay {
   parkingSpaceId: number;
 }
 
+interface Activity {
+  eventId: number;
+  label: string;
+  value: string;
+  time: string;
+  timestamp: number;
+}
+
 export default function HomePage() {
   const { user, logout } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigate = useNavigate();
   const [allSlots, setAllSlots] = useState<SlotDisplay[]>([]);
   const [parkingSpaces, setParkingSpaces] = useState<ParkingSpaceDto[]>([]);
   const [selectedParkingSpaceId, setSelectedParkingSpaceId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
+  // Clear activities when parking space changes
+  useEffect(() => {
+    setActivities([]);
+  }, [selectedParkingSpaceId]);
+
+  // Fetch parking spaces and slots on mount
   // Fetch parking spaces and slots on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -34,9 +51,9 @@ export default function HomePage() {
           parkingSpaceService.getAllParkingSpaces(),
           slotService.getAllSlots(),
         ]);
-        
+
         setParkingSpaces(parkingSpacesData);
-        
+
         // Transform backend data to UI format (labels will be assigned when filtering)
         const transformedSlots: SlotDisplay[] = slotsData.map((slot: SlotDto) => ({
           id: `S-${slot.id}`,
@@ -44,9 +61,9 @@ export default function HomePage() {
           occupied: slot.isOccupied || false,
           parkingSpaceId: slot.parkingSpaceId,
         }));
-        
+
         setAllSlots(transformedSlots);
-        
+
         // Auto-select first parking space if available
         if (parkingSpacesData.length > 0) {
           setSelectedParkingSpaceId(parkingSpacesData[0].id);
@@ -64,18 +81,110 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  // Filter slots by selected parking space and re-number them starting from 1
-  const slots = selectedParkingSpaceId 
-    ? allSlots
-        .filter(slot => slot.parkingSpaceId === selectedParkingSpaceId)
-        .map((slot, index) => ({
-          ...slot,
-          label: `S${String(index + 1).padStart(2, '0')}`, // Re-number starting from 1 for this parking space
+  // Subscribe to real-time slot updates
+  useEffect(() => {
+    const unsubscribe = subscribe('/topic/overview_updates', (event: any) => {
+      if (event?.type !== 'slot_changed') return;
+
+      // Backend sends slotId as number; our UI stores id as `S-<number>`
+      const slotKey = `S-${event.slotId}`;
+      setAllSlots((prev) =>
+        prev.map((s) =>
+          s.id === slotKey
+            ? {
+                ...s,
+                occupied: Boolean(event.isOccupied),
+              }
+            : s,
+        ),
+      );
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [subscribe]);
+
+  // Subscribe to real-time activity updates
+  useEffect(() => {
+    if (!selectedParkingSpaceId) return;
+
+    const unsubscribe = subscribe('/topic/entrylog_new_events', (event: any) => {
+      // Only process events for the currently selected parking space
+      if (event?.type === 'entrylog_event' && event.parkingSpaceId === selectedParkingSpaceId) {
+        const action = event.action === 'vehicle_entered' ? 'entered' : 'exited';
+        const actionText = action === 'entered' ? 'entered' : 'exited';
+
+        setActivities((prev) =>
+          [
+            {
+              eventId: event.eventId,
+              label: `Vehicle ${actionText}`,
+              value: `License: ${event.licensePlate}`,
+              time: 'just now',
+              timestamp: Date.now(),
+            },
+            ...prev,
+          ].slice(0, 10), // Keep only the last 10 activities
+        );
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [subscribe, selectedParkingSpaceId]);
+
+  // Update activity timestamps
+  useEffect(() => {
+    const formatTimeAgo = (timestamp: number) => {
+      const seconds = Math.floor((Date.now() - timestamp) / 1000);
+      if (seconds < 60) return 'just now';
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+      return `${Math.floor(seconds / 86400)}d ago`;
+    };
+
+    const interval = setInterval(() => {
+      setActivities(prev =>
+        prev.map(activity => ({
+          ...activity,
+          time: formatTimeAgo(activity.timestamp)
         }))
-    : allSlots.map((slot, index) => ({
-        ...slot,
-        label: `S${String(index + 1).padStart(2, '0')}`,
-      }));
+      );
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const slots = selectedParkingSpaceId
+    ? (() => {
+        const filtered = allSlots
+          .filter((slot) => slot.parkingSpaceId === selectedParkingSpaceId)
+          .slice()
+          .sort(
+            (a, b) =>
+              parseInt(a.id.replace('S-', ''), 10) -
+              parseInt(b.id.replace('S-', ''), 10),
+          );
+
+        // Map display labels so that the lowest slot id in this parking space becomes S01, then S02...
+        return filtered.map((slot, idx) => ({
+          ...slot,
+          label: `S${String(idx + 1).padStart(2, '0')}`,
+        }));
+      })()
+    : allSlots
+        .slice()
+        .sort(
+          (a, b) =>
+            parseInt(a.id.replace('S-', ''), 10) - parseInt(b.id.replace('S-', ''), 10),
+        )
+        .map((slot) => ({
+          ...slot,
+          // When no parking space is selected, show global numbering by real id
+          label: `S${String(parseInt(slot.id.replace('S-', ''), 10)).padStart(2, '0')}`,
+        }));
 
   const total = slots.length;
   const occupied = slots.filter((s) => s.occupied).length;
@@ -85,7 +194,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      
+
       <div className="mx-auto flex min-h-screen max-w-[1400px] gap-6 p-4 sm:p-6">
         {/* Sidebar */}
         <aside className="hidden w-72 shrink-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:block">
@@ -130,6 +239,20 @@ export default function HomePage() {
             >
               <KeyRound className="h-4 w-4" />
               <span>RFID</span>
+            </button>
+            <button
+              onClick={() => navigate('/doors')}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              <DoorOpen className="h-4 w-4" />
+              <span>Doors</span>
+            </button>
+            <button
+              onClick={() => navigate('/lcds')}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              <Monitor className="h-4 w-4" />
+              <span>LCDs</span>
             </button>
             <button
               onClick={() => navigate('/admin')}
@@ -266,9 +389,9 @@ export default function HomePage() {
                   </div>
                 </div>
               ) : (
-                <OccupancyGrid 
-                  title={selectedParkingSpace ? `${selectedParkingSpace.name} - Live Overview` : 'Live Overview'} 
-                  slots={slots} 
+                <OccupancyGrid
+                  title={selectedParkingSpace ? `${selectedParkingSpace.name} - Live Overview` : 'Live Overview'}
+                  slots={slots}
                 />
               )}
             </div>
@@ -276,19 +399,22 @@ export default function HomePage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-sm font-semibold text-slate-900">Activity</h3>
               <div className="mt-4 space-y-3">
-                {[
-                  { label: 'RFID scanned', value: 'hungtq123@test.com', time: 'just now' },
-                  { label: 'Vehicle entered', value: 'Slot S03', time: '2m ago' },
-                  { label: 'Vehicle exited', value: 'Slot S09', time: '10m ago' },
-                ].map((a, idx) => (
-                  <div key={idx} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-800">{a.label}</div>
-                      <div className="mt-1 text-xs text-slate-500">{a.value}</div>
+                {activities.length === 0 ? (
+                  <div className="text-sm text-slate-500">No recent activity</div>
+                ) : (
+                  activities.map((a, idx) => (
+                    <div
+                      key={`${a.eventId ?? idx}-${a.timestamp}`}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                    >
+                      <div>
+                        <div className="text-xs font-semibold text-slate-800">{a.label}</div>
+                        <div className="mt-1 text-xs text-slate-500">{a.value}</div>
+                      </div>
+                      <div className="text-[11px] text-slate-500">{a.time}</div>
                     </div>
-                    <div className="text-[11px] text-slate-500">{a.time}</div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
               <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3">

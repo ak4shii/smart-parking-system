@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  KeyRound, 
-  Plus, 
-  Trash2, 
-  Search, 
+  KeyRound,
+  Plus,
+  Trash2,
+  Search,
   X,
+  DoorOpen,
+  Monitor,
   LayoutDashboard,
   Radio,
   Car,
@@ -172,6 +174,20 @@ export default function RfidPage() {
               <KeyRound className="h-4 w-4 text-slate-600" />
               <span className="text-slate-900">RFID</span>
             </div>
+            <button
+              onClick={() => navigate('/doors')}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              <DoorOpen className="h-4 w-4" />
+              <span>Doors</span>
+            </button>
+            <button
+              onClick={() => navigate('/lcds')}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              <Monitor className="h-4 w-4" />
+              <span>LCDs</span>
+            </button>
             <button
               onClick={() => navigate('/admin')}
               className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"

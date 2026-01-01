@@ -16,6 +16,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +29,7 @@ public class SlotServiceImpl implements ISlotService {
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final UserParkingSpaceRepository userParkingSpaceRepository;
     private final UserRepository userRepository;
+    private final RealtimeEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -90,6 +93,26 @@ public class SlotServiceImpl implements ISlotService {
         requireMembership(currentUser.getId(), slot.getPs().getId());
 
         slotRepository.delete(slot);
+    }
+
+    @Override
+    @Transactional
+    public SlotDto updateSlotStatus(Integer slotId, Boolean isOccupied) {
+        User currentUser = getCurrentUser();
+
+        Slot slot = slotRepository.findById(slotId)
+                .orElseThrow(() -> new RuntimeException("Slot not found with id: " + slotId));
+
+        requireMembership(currentUser.getId(), slot.getPs().getId());
+
+        slot.setIsOccupied(isOccupied);
+        Slot saved = slotRepository.save(slot);
+        slotRepository.flush();
+
+        // Push real-time update to all subscribed clients
+        eventPublisher.publishSlotChanged(saved.getId(), saved.getIsOccupied(), saved.getPs().getId());
+
+        return toDto(saved);
     }
 
     private void requireMembership(Integer userId, Integer parkingSpaceId) {

@@ -20,19 +20,19 @@ public class User {
     private Integer id;
 
     @NotNull
-    @Column(name = "username", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "username", nullable = false, length = 255)
     private String username;
 
     @NotNull
-    @Column(name = "email", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "email", nullable = false, length = 255)
     private String email;
 
     @NotNull
-    @Column(name = "password_hash", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
     @NotNull
-    @Column(name = "role", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "role", nullable = false, length = 50)
     private String role;
 
     @ColumnDefault("true")

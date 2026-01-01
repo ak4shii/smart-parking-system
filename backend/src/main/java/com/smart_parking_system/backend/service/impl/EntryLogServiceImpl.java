@@ -22,6 +22,70 @@ public class EntryLogServiceImpl implements IEntryLogService {
     private final EntryLogRepository entryLogRepository;
     private final UserParkingSpaceRepository userParkingSpaceRepository;
     private final UserRepository userRepository;
+    private final com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher eventPublisher;
+
+    @Override
+    @Transactional
+    public EntryLogDto createEntry(CreateEntryRequestDto requestDto) {
+        User currentUser = getCurrentUser();
+
+        Rfid rfid = rfidRepository.findByRfidCode(requestDto.getRfidCode())
+                .orElseThrow(() -> new RuntimeException("RFID not found"));
+      
+        if (Boolean.TRUE.equals(rfid.getCurrentlyUsed())) {
+            throw new RuntimeException("This RFID is currently used");
+        }
+
+        entryLogRepository.findActiveByRfidId(rfid.getId()).ifPresent(active -> {
+            throw new RuntimeException("This RFID already has an active entry log");
+        });
+
+        Integer psId = rfid.getPs().getId();
+        requireMembership(currentUser.getId(), psId);
+
+        EntryLog entryLog = new EntryLog();
+        entryLog.setRfid(rfid);
+        entryLog.setLicensePlate(requestDto.getLicensePlate());
+        entryLog.setInTime(Instant.now());
+        entryLog.setOutTime(null);
+
+        rfid.setCurrentlyUsed(true);
+        rfidRepository.save(rfid);
+
+        EntryLog saved = entryLogRepository.save(entryLog);
+        entryLogRepository.flush();
+      
+        eventPublisher.publishVehicleEntered(saved.getId(), saved.getLicensePlate(), rfid.getRfidCode(), psId);
+
+        return toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public EntryLogDto exit(ExitRequestDto requestDto) {
+        User currentUser = getCurrentUser();
+
+        Rfid rfid = rfidRepository.findByRfidCode(requestDto.getRfidCode())
+                .orElseThrow(() -> new RuntimeException("RFID not found"));
+      
+       EntryLog active = entryLogRepository.findActiveByRfidId(rfid.getId())
+                .orElseThrow(() -> new RuntimeException("No active entry log for this RFID"));
+
+        Integer psId = rfid.getPs().getId();
+        requireMembership(currentUser.getId(), psId);
+
+        active.setOutTime(Instant.now());
+
+        rfid.setCurrentlyUsed(false);
+        rfidRepository.save(rfid);
+
+        EntryLog saved = entryLogRepository.save(active);
+        entryLogRepository.flush();
+
+        eventPublisher.publishVehicleExited(saved.getId(), saved.getLicensePlate(), rfid.getRfidCode(), psId);
+
+        return toDto(saved);
+    }
 
     @Override
     public EntryLogDto getEntryLogById(Integer id) {
