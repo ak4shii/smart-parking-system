@@ -10,9 +10,12 @@ import lombok.ToString;
 public class SlotDto {
     
     private Integer id;
+    private String name;
     private Integer parkingSpaceId;
     private Boolean isOccupied;
 }
+
+
 
 
 

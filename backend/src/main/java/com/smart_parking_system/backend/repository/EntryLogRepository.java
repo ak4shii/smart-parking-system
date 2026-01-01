@@ -21,3 +21,5 @@ public interface EntryLogRepository extends JpaRepository<EntryLog, Integer> {
 
 
 
+
+

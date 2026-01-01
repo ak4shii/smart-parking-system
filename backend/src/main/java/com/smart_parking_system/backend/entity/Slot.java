@@ -17,6 +17,9 @@ public class Slot {
     @Column(name = "slot_id", nullable = false)
     private Integer id;
 
+    @Column(name = "name", length = Integer.MAX_VALUE, unique = true)
+    private String name;
+
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ps_id", nullable = false)

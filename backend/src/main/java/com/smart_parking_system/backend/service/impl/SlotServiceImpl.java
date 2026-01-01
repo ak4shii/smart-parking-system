@@ -41,7 +41,12 @@ public class SlotServiceImpl implements ISlotService {
 
         requireMembership(currentUser.getId(), ps.getId());
 
+        if (slotRepository.findByName(requestDto.getName()).isPresent()) {
+            throw new RuntimeException("Slot with name '" + requestDto.getName() + "' already exists");
+        }
+
         Slot slot = new Slot();
+        slot.setName(requestDto.getName());
         slot.setPs(ps);
         slot.setIsOccupied(false);
 
@@ -126,6 +131,7 @@ public class SlotServiceImpl implements ISlotService {
     private SlotDto toDto(Slot slot) {
         SlotDto dto = new SlotDto();
         dto.setId(slot.getId());
+        dto.setName(slot.getName());
         dto.setIsOccupied(slot.getIsOccupied());
         if (slot.getPs() != null) {
             dto.setParkingSpaceId(slot.getPs().getId());
@@ -133,6 +139,8 @@ public class SlotServiceImpl implements ISlotService {
         return dto;
     }
 }
+
+
 
 
 
