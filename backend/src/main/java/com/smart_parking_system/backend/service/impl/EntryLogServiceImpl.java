@@ -29,6 +29,7 @@ public class EntryLogServiceImpl implements IEntryLogService {
     private final RfidRepository rfidRepository;
     private final UserParkingSpaceRepository userParkingSpaceRepository;
     private final UserRepository userRepository;
+    private final com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -61,6 +62,9 @@ public class EntryLogServiceImpl implements IEntryLogService {
         EntryLog saved = entryLogRepository.save(entryLog);
         entryLogRepository.flush();
 
+        // Realtime push: new entry log
+        eventPublisher.publishVehicleEntered(saved.getId(), saved.getLicensePlate(), rfid.getRfidCode(), psId);
+
         return toDto(saved);
     }
 
@@ -85,6 +89,9 @@ public class EntryLogServiceImpl implements IEntryLogService {
 
         EntryLog saved = entryLogRepository.save(active);
         entryLogRepository.flush();
+
+        // Realtime push: vehicle exit
+        eventPublisher.publishVehicleExited(saved.getId(), saved.getLicensePlate(), rfid.getRfidCode(), psId);
 
         return toDto(saved);
     }
