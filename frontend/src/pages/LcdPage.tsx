@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Monitor, LayoutDashboard, KeyRound, Radio, ShieldCheck, ParkingSquare, LogOut, Car, DoorOpen, ChevronDown, Plus, Edit, Trash2, RefreshCcw } from 'lucide-react';
+import { Monitor, LayoutDashboard, KeyRound, Radio, ShieldCheck, ParkingSquare, LogOut, Car, DoorOpen, ChevronDown, Plus, RefreshCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '../context/AuthContext';
@@ -34,7 +34,7 @@ export default function LcdPage() {
     });
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
   }, [lcds]);
-const availableMicrocontrollers = useMemo(() => {
+  const availableMicrocontrollers = useMemo(() => {
     if (!selectedParkingSpaceId) return [];
     return microcontrollers.filter(mc => mc.parkingSpaceId === selectedParkingSpaceId);
   }, [microcontrollers, selectedParkingSpaceId]);
@@ -74,7 +74,7 @@ const availableMicrocontrollers = useMemo(() => {
       setIsLoading(false);
     }
   }
-const handleCreate = async () => {
+  const handleCreate = async () => {
     // Get fresh list of microcontrollers in case it changed
     const microcontrollers = await microcontrollerService.getAllMicrocontrollers();
     setMicrocontrollers(microcontrollers);
@@ -87,28 +87,6 @@ const handleCreate = async () => {
     });
 
     setIsCreateModalOpen(true);
-  };
-
-  const handleEdit = (lcd: LcdDto) => {
-    setCurrentLcd(lcd);
-    setDraft(prev => ({
-      ...prev,
-      [lcd.id]: lcd.displayText || ''
-    }));
-    setIsEditModalOpen(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this LCD?')) {
-      try {
-        await lcdService.deleteLcd(id);
-        setLcds((prev) => prev.filter((l) => l.id !== id));
-        toast.success('LCD deleted successfully');
-      } catch (e: any) {
-        console.error(e);
-        toast.error(e.response?.data?.message || 'Failed to delete LCD');
-      }
-    }
   };
 
   const handleSave = async () => {
@@ -182,7 +160,7 @@ const handleCreate = async () => {
               <div className="text-sm font-semibold text-slate-900">LCD Control</div>
             </div>
           </div>
-{/* Current Parking Space */}
+          {/* Current Parking Space */}
           {selectedParkingSpace && (
             <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-3">
               <div className="text-xs font-semibold text-indigo-600">Viewing</div>

@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { Client } from '@stomp/stompjs';
-// SockJS NPM bundle relies on Node globals in some builds under Vite.
-// Use the browser-friendly ESM build.
-import SockJS from 'sockjs-client/dist/sockjs';
-import type { IMessage } from '@stomp/stompjs';
-import { useAuth } from '../context/AuthContext';
+import { useCallback, useEffect, useRef } from "react";
+import { Client } from "@stomp/stompjs";
+// Use SockJS for WebSocket fallback
+import SockJS from "sockjs-client";
+import type { IMessage } from "@stomp/stompjs";
+import { useAuth } from "../context/AuthContext";
 
 type EventHandler = (event: any) => void;
 
@@ -29,7 +28,7 @@ class WebSocketService {
 
   public connect() {
     // Your app stores JWT in cookie `jwt_token` (see api.ts)
-    const token = this.getCookie('jwt_token');
+    const token = this.getCookie("jwt_token");
 
     // If no token, do not connect (user not logged in)
     if (!token) return;
@@ -39,7 +38,8 @@ class WebSocketService {
 
     this.client = new Client({
       // Use SockJS to ensure STOMP frames work reliably with Spring's STOMP endpoint
-      webSocketFactory: () => new SockJS(resolveBrokerUrl().replace(/^ws/, 'http')) as any,
+      webSocketFactory: () =>
+        new SockJS(resolveBrokerUrl().replace(/^ws/, "http")) as any,
       connectHeaders: {
         Authorization: `Bearer ${token}`,
       },
@@ -49,19 +49,22 @@ class WebSocketService {
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       onConnect: () => {
-        console.log('[WebSocket] STOMP Connected to', resolveBrokerUrl());
+        console.log("[WebSocket] STOMP Connected to", resolveBrokerUrl());
         this.reconnectAttempts = 0;
         this.resubscribeAll();
       },
       onStompError: (frame) => {
-        console.error('[WebSocket] STOMP Broker reported error:', frame.headers['message']);
-        console.error('Additional details:', frame.body);
+        console.error(
+          "[WebSocket] STOMP Broker reported error:",
+          frame.headers["message"]
+        );
+        console.error("Additional details:", frame.body);
       },
       onWebSocketError: (evt) => {
-        console.error('[WebSocket] WebSocket error event:', evt);
+        console.error("[WebSocket] WebSocket error event:", evt);
       },
       onWebSocketClose: (evt) => {
-        console.log('[WebSocket] WebSocket closed', evt);
+        console.log("[WebSocket] WebSocket closed", evt);
         this.attemptReconnect();
       },
     });
@@ -72,26 +75,28 @@ class WebSocketService {
   private getCookie(name: string): string | null {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()!.split(';').shift() || null;
+    if (parts.length === 2) return parts.pop()!.split(";").shift() || null;
     return null;
   }
 
   private attemptReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`[WebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-      
+      console.log(
+        `[WebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+      );
+
       setTimeout(() => {
         this.connect();
       }, this.reconnectDelay);
     } else {
-      console.error('[WebSocket] Max reconnection attempts reached');
+      console.error("[WebSocket] Max reconnection attempts reached");
     }
   }
 
   private resubscribeAll() {
     this.subscribers.forEach((handlers, destination) => {
-      handlers.forEach(handler => {
+      handlers.forEach((handler) => {
         this.subscribe(destination, handler);
       });
     });
@@ -104,7 +109,7 @@ class WebSocketService {
         this.subscribers.set(destination, new Set());
       }
       this.subscribers.get(destination)?.add(handler);
-      
+
       // Return cleanup function that removes the handler
       return () => {
         this.subscribers.get(destination)?.delete(handler);
@@ -112,14 +117,17 @@ class WebSocketService {
     }
 
     // If already connected, subscribe immediately
-    const subscription = this.client.subscribe(destination, (message: IMessage) => {
-      try {
-        const data = JSON.parse(message.body);
-        handler(data);
-      } catch (error) {
-        console.error('[WebSocket] Error parsing message:', error);
+    const subscription = this.client.subscribe(
+      destination,
+      (message: IMessage) => {
+        try {
+          const data = JSON.parse(message.body);
+          handler(data);
+        } catch (error) {
+          console.error("[WebSocket] Error parsing message:", error);
+        }
       }
-    });
+    );
 
     // Store the subscription for reconnection
     if (!this.subscribers.has(destination)) {
@@ -153,7 +161,7 @@ export function useWebSocket() {
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      subscriptions.current.forEach(unsubscribe => unsubscribe());
+      subscriptions.current.forEach((unsubscribe) => unsubscribe());
       subscriptions.current = [];
     };
   }, []);
@@ -167,17 +175,22 @@ export function useWebSocket() {
     }
   }, [isAuthenticated]);
 
-  const subscribe = useCallback((destination: string, handler: EventHandler) => {
-    if (!isAuthenticated) return () => {};
-    
-    const unsubscribe = webSocketService.subscribe(destination, handler);
-    subscriptions.current.push(unsubscribe);
-    
-    return () => {
-      unsubscribe();
-      subscriptions.current = subscriptions.current.filter(sub => sub !== unsubscribe);
-    };
-  }, [isAuthenticated]);
+  const subscribe = useCallback(
+    (destination: string, handler: EventHandler) => {
+      if (!isAuthenticated) return () => {};
+
+      const unsubscribe = webSocketService.subscribe(destination, handler);
+      subscriptions.current.push(unsubscribe);
+
+      return () => {
+        unsubscribe();
+        subscriptions.current = subscriptions.current.filter(
+          (sub) => sub !== unsubscribe
+        );
+      };
+    },
+    [isAuthenticated]
+  );
 
   return { subscribe };
 }

@@ -65,20 +65,15 @@ export default function DevicesPage() {
     }
   };
 
-  const getParkingSpaceName = (parkingSpaceId: number) => {
-    const space = parkingSpaces.find((ps) => ps.id === parkingSpaceId);
-    return space ? space.name : 'Unknown';
-  };
-
   const getSlotLabel = (slotId: number) => {
     const slot = slots.find((s) => s.id === slotId);
     if (!slot) return `Slot #${slotId}`;
-    
+
     // Get all slots for this parking space and find the index
     const parkingSpaceSlots = slots
       .filter((s) => s.parkingSpaceId === slot.parkingSpaceId)
       .sort((a, b) => a.id - b.id);
-    
+
     const index = parkingSpaceSlots.findIndex((s) => s.id === slotId);
     return `S${String(index + 1).padStart(2, '0')}`;
   };
@@ -336,8 +331,8 @@ export default function DevicesPage() {
                   {searchTerm
                     ? 'Try adjusting your search terms'
                     : selectedParkingSpace
-                    ? `${selectedParkingSpace.name} has no sensors yet`
-                    : 'Create parking slots to add sensors'}
+                      ? `${selectedParkingSpace.name} has no sensors yet`
+                      : 'Create parking slots to add sensors'}
                 </div>
               </div>
             ) : (
@@ -367,11 +362,10 @@ export default function DevicesPage() {
                           </td>
                           <td className="py-4">
                             <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                sensor.type === 'ultrasonic'
+                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${sensor.type === 'ultrasonic'
                                   ? 'bg-blue-100 text-blue-700'
                                   : 'bg-purple-100 text-purple-700'
-                              }`}
+                                }`}
                             >
                               {sensor.type}
                             </span>
