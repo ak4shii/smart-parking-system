@@ -145,10 +145,13 @@ export default function DevicesPage() {
               <Radio className="h-4 w-4 text-slate-600" />
               <span className="text-slate-900">Devices</span>
             </div>
-            <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+            <button
+              onClick={() => navigate('/entry-logs')}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
               <Car className="h-4 w-4" />
-              <span>Vehicles</span>
-            </div>
+              <span>Entry Logs</span>
+            </button>
             <button
               onClick={() => navigate('/rfid')}
               className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"

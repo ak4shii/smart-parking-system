@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage.tsx';
 import HomePage from './pages/HomePage';
 import DevicesPage from './pages/DevicesPage';
+import EntryLogPage from './pages/EntryLogPage';
 import RfidPage from './pages/RfidPage';
 import DoorPage from './pages/DoorPage';
 import LcdPage from './pages/LcdPage';
@@ -31,6 +32,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DevicesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/entry-logs"
+            element={
+              <ProtectedRoute>
+                <EntryLogPage />
               </ProtectedRoute>
             }
           />
