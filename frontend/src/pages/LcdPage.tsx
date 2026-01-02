@@ -7,9 +7,11 @@ import { useAuth } from '../context/AuthContext';
 import lcdService, { type LcdDto } from '../services/lcdService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
 import microcontrollerService, { type MicrocontrollerDto } from '../services/microcontrollerService';
+import { useWebSocket } from '../services/websocket';
 
 export default function LcdPage() {
   const { user, logout } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigate = useNavigate();
 
   const [lcds, setLcds] = useState<LcdDto[]>([]);
@@ -132,6 +134,32 @@ export default function LcdPage() {
   useEffect(() => {
     fetchLcds();
   }, []);
+
+  // Subscribe to real-time LCD updates
+  useEffect(() => {
+    if (!selectedParkingSpaceId) return;
+
+    const unsubscribe = subscribe('/topic/lcd_updates', (event: any) => {
+      // Only process events for the currently selected parking space
+      if (event?.type === 'lcd_changed' && event.parkingSpaceId === selectedParkingSpaceId) {
+        // Update the LCD in the list
+        setLcds((prevLcds) =>
+          prevLcds.map((lcd) =>
+            lcd.id === event.lcdId
+              ? { ...lcd, displayText: event.display }
+              : lcd
+          )
+        );
+        
+        // Show toast notification
+        toast.success(`LCD "${event.lcdName}" updated`);
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [subscribe, selectedParkingSpaceId]);
 
   const save = async (lcd: LcdDto) => {
     try {

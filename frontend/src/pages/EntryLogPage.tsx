@@ -21,9 +21,11 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import entryLogService, { type EntryLogDto } from '../services/entryLogService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
+import { useWebSocket } from '../services/websocket';
 
 export default function EntryLogPage() {
   const { user, logout } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigate = useNavigate();
   const [entryLogs, setEntryLogs] = useState<EntryLogDto[]>([]);
   const [parkingSpaces, setParkingSpaces] = useState<ParkingSpaceDto[]>([]);
@@ -39,6 +41,27 @@ export default function EntryLogPage() {
       fetchEntryLogs(selectedParkingSpaceId);
     }
   }, [selectedParkingSpaceId]);
+
+  // Subscribe to real-time entry log updates
+  useEffect(() => {
+    if (!selectedParkingSpaceId) return;
+
+    const unsubscribe = subscribe('/topic/entrylog_new_events', (event: any) => {
+      // Only process events for the currently selected parking space
+      if (event?.type === 'entrylog_event' && event.parkingSpaceId === selectedParkingSpaceId) {
+        // Refresh the entry logs when a new event occurs
+        fetchEntryLogs(selectedParkingSpaceId);
+        
+        // Show toast notification
+        const action = event.action === 'vehicle_entered' ? 'entered' : 'exited';
+        toast.success(`Vehicle ${event.licensePlate} ${action}`);
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [subscribe, selectedParkingSpaceId]);
 
   const fetchParkingSpaces = async () => {
     try {
@@ -328,4 +351,5 @@ export default function EntryLogPage() {
     </div>
   );
 }
+
 

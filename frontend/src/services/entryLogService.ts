@@ -26,3 +26,4 @@ class EntryLogService {
 
 export default new EntryLogService();
 
+

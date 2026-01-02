@@ -8,6 +8,7 @@ import com.smart_parking_system.backend.dto.mqtt.MqttLcdStatusDto;
 import com.smart_parking_system.backend.entity.Lcd;
 import com.smart_parking_system.backend.repository.LcdRepository;
 import com.smart_parking_system.backend.service.IMqttLcdService;
+import com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ public class MqttLcdServiceImpl implements IMqttLcdService {
     private final LcdRepository lcdRepository;
     private final ObjectMapper objectMapper;
     private final MessageChannel mqttOutboundChannel;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Value("${mqtt.base-topic}")
     private String baseTopic;
@@ -70,6 +72,18 @@ public class MqttLcdServiceImpl implements IMqttLcdService {
 
         Lcd saved = lcdRepository.save(lcd);
         lcdRepository.flush();
+
+        // Publish WebSocket event for real-time updates
+        Integer parkingSpaceId = saved.getMc() != null && saved.getMc().getParkingSpace() != null 
+                ? saved.getMc().getParkingSpace().getId() 
+                : null;
+        realtimeEventPublisher.publishLcdChanged(
+                saved.getId(),
+                saved.getName(),
+                saved.getDisplayText(),
+                saved.getMc() != null ? saved.getMc().getId() : null,
+                parkingSpaceId
+        );
 
         return toDto(saved);
     }
