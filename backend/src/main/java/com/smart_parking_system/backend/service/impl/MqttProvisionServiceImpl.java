@@ -40,10 +40,10 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
     private final MqttPahoClientFactory mqttClientFactory;
     private final ObjectMapper objectMapper;
 
-    @Value("${mqtt.base-topic}")
+    @Value("${MQTT_CLIENT_ID:sps-backend}")
     private String baseTopic;
 
-    @Value("${mqtt.client-id}")
+    @Value("${MQTT_BASE_TOPIC:sps}")
     private String clientId;
 
     @Override

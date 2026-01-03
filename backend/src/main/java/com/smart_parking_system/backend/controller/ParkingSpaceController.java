@@ -81,7 +81,6 @@ public class ParkingSpaceController {
         }
     }
 
-
     @GetMapping("/{id}/managers")
     public ResponseEntity<List<ParkingSpaceManagerDto>> getManagers(@PathVariable("id") Integer parkingSpaceId) {
         try {
@@ -96,8 +95,7 @@ public class ParkingSpaceController {
     @PostMapping("/{id}/managers")
     public ResponseEntity<Void> addManager(
             @PathVariable("id") Integer parkingSpaceId,
-            @Valid @RequestBody AddParkingSpaceManagerRequestDto requestDto
-    ) {
+            @Valid @RequestBody AddParkingSpaceManagerRequestDto requestDto) {
         try {
             parkingSpaceService.addManager(parkingSpaceId, requestDto.getEmail());
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
@@ -111,8 +109,7 @@ public class ParkingSpaceController {
     @DeleteMapping("/{id}/managers/{userId}")
     public ResponseEntity<Void> removeManager(
             @PathVariable("id") Integer parkingSpaceId,
-            @PathVariable("userId") Integer managerUserId
-    ) {
+            @PathVariable("userId") Integer managerUserId) {
         try {
             parkingSpaceService.removeManager(parkingSpaceId, managerUserId);
             return ResponseEntity.noContent().build();
@@ -126,8 +123,7 @@ public class ParkingSpaceController {
     @PostMapping("/{id}/transfer-ownership")
     public ResponseEntity<Void> transferOwnership(
             @PathVariable("id") Integer parkingSpaceId,
-            @Valid @RequestBody TransferParkingSpaceOwnershipRequestDto requestDto
-    ) {
+            @Valid @RequestBody TransferParkingSpaceOwnershipRequestDto requestDto) {
         try {
             parkingSpaceService.transferOwnership(parkingSpaceId, requestDto.getNewOwnerUserId());
             return ResponseEntity.noContent().build();
@@ -138,4 +134,3 @@ public class ParkingSpaceController {
         }
     }
 }
-

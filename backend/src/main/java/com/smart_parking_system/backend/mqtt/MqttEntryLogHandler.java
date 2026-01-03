@@ -32,7 +32,7 @@ public class MqttEntryLogHandler {
     private final ObjectMapper objectMapper;
     private final MessageChannel mqttOutboundChannel;
 
-    @Value("${mqtt.base-topic}")
+    @Value("${MQTT_BASE_TOPIC:sps}")
     private String baseTopic;
 
     @ServiceActivator(inputChannel = "mqttEntryLogInputChannel")
