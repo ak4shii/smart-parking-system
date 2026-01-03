@@ -46,8 +46,7 @@ public class MqttDoorServiceImpl implements IMqttDoorService {
             mqttOutboundChannel.send(
                     MessageBuilder.withPayload(json)
                             .setHeader(MqttHeaders.TOPIC, topic)
-                            .build()
-            );
+                            .build());
 
             log.info("Sent door command: doorId={}, open={}, topic={}", doorId, open, topic);
         } catch (JsonProcessingException e) {
@@ -74,16 +73,15 @@ public class MqttDoorServiceImpl implements IMqttDoorService {
         doorRepository.flush();
 
         // Publish WebSocket event for real-time updates
-        Integer parkingSpaceId = saved.getMc() != null && saved.getMc().getParkingSpace() != null 
-                ? saved.getMc().getParkingSpace().getId() 
+        Integer parkingSpaceId = saved.getMc() != null && saved.getMc().getPs() != null
+                ? saved.getMc().getPs().getId()
                 : null;
         realtimeEventPublisher.publishDoorChanged(
                 saved.getId(),
                 saved.getName(),
                 saved.getIsOpened(),
                 saved.getMc() != null ? saved.getMc().getId() : null,
-                parkingSpaceId
-        );
+                parkingSpaceId);
 
         return toDto(saved);
     }
@@ -99,6 +97,3 @@ public class MqttDoorServiceImpl implements IMqttDoorService {
         return dto;
     }
 }
-
-
-
