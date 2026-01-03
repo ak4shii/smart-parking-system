@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Test - Smart Parking System</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    .status.disconnected { background: #ffebee; color: #c62828; }
+    .status.connected { background: #e8f5e9; color: #2e7d32; }
+    .controls {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .btn-connect {
+      background: #4CAF50;
+      color: white;
+    }
+    .btn-disconnect {
+      background: #f44336;
+      color: white;
+    }
+    .btn-test {
+      background: #2196F3;
+      color: white;
+    }
+    .btn-clear {
+      background: #9E9E9E;
+      color: white;
+    }
+    .events-container {
+      margin-top: 20px;
+    }
+    .events {
+      background: #263238;
+      color: #aed581;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 500px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .event-item {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid #4CAF50;
+      padding-left: 10px;
+    }
+    .event-slot { border-left-color: #2196F3; }
+    .event-entry { border-left-color: #FF9800; }
+    .event-door { border-left-color: #9C27B0; }
+    .event-lcd { border-left-color: #00BCD4; }
+    .event-error { border-left-color: #f44336; color: #ff8a80; }
+    .input-group {
+      margin: 15px 0;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 8px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .input-group input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .stat-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-box h3 {
+      margin: 0;
+      font-size: 32px;
+    }
+    .stat-box p {
+      margin: 5px 0 0 0;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚗 WebSocket Test Dashboard</h1>
+    
+    <div id="status" class="status disconnected">
+      ⚫ DISCONNECTED
+    </div>
+
+    <div class="input-group">
+      <label for="jwtToken">JWT Token (Login first to get token):</label>
+      <input type="text" id="jwtToken" placeholder="Paste your JWT token here...">
+    </div>
+
+    <div class="controls">
+      <button class="btn-connect" onclick="connect()">🔌 Connect</button>
+      <button class="btn-disconnect" onclick="disconnect()">🔌 Disconnect</button>
+      <button class="btn-test" onclick="testSlot()">🧪 Test Slot Event</button>
+      <button class="btn-test" onclick="testEntry()">🧪 Test Entry Event</button>
+      <button class="btn-clear" onclick="clearEvents()">🗑️ Clear Events</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-box">
+        <h3 id="slotCount">0</h3>
+        <p>Slot Events</p>
+      </div>
+      <div class="stat-box">
+        <h3 id="entryCount">0</h3>
+        <p>Entry Events</p>
+      </div>
+      <div class="stat-box">
+        <h3 id="doorCount">0</h3>
+        <p>Door Events</p>
+      </div>
+      <div class="stat-box">
+        <h3 id="lcdCount">0</h3>
+        <p>LCD Events</p>
+      </div>
+    </div>
+
+    <div class="events-container">
+      <h2>📨 Events Log</h2>
+      <div id="events" class="events">Waiting for connection...</div>
+    </div>
+  </div>
+
+  <script>
+    let stompClient = null;
+    let eventCounts = {
+      slot: 0,
+      entry: 0,
+      door: 0,
+      lcd: 0
+    };
+
+    function updateStatus(connected) {
+      const statusDiv = document.getElementById('status');
+      if (connected) {
+        statusDiv.className = 'status connected';
+        statusDiv.innerHTML = '🟢 CONNECTED';
+      } else {
+        statusDiv.className = 'status disconnected';
+        statusDiv.innerHTML = '⚫ DISCONNECTED';
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('slotCount').textContent = eventCounts.slot;
+      document.getElementById('entryCount').textContent = eventCounts.entry;
+      document.getElementById('doorCount').textContent = eventCounts.door;
+      document.getElementById('lcdCount').textContent = eventCounts.lcd;
+    }
+
+    function log(message, type = 'info') {
+      const events = document.getElementById('events');
+      const time = new Date().toLocaleTimeString();
+      const className = type === 'error' ? 'event-error' : `event-${type}`;
+      
+      const eventDiv = document.createElement('div');
+      eventDiv.className = `event-item ${className}`;
+      eventDiv.textContent = `[${time}] ${message}`;
+      
+      events.appendChild(eventDiv);
+      events.scrollTop = events.scrollHeight;
+    }
+
+    function connect() {
+      const token = document.getElementById('jwtToken').value.trim();
+      
+      if (!token) {
+        alert('Please enter your JWT token first!\n\nTo get a token:\n1. Login to the app\n2. Open DevTools Console\n3. Run: document.cookie\n4. Copy the jwt_token value');
+        return;
+      }
+
+      if (stompClient && stompClient.connected) {
+        log('Already connected!', 'error');
+        return;
+      }
+
+      log('Connecting to WebSocket...', 'info');
+      
+      const socket = new SockJS('http://localhost:8080/ws');
+      stompClient = new StompJs.Client({
+        webSocketFactory: () => socket,
+        connectHeaders: {
+          Authorization: `Bearer ${token}`
+        },
+        onConnect: () => {
+          log('✅ Connected successfully!', 'info');
+          updateStatus(true);
+          subscribeToTopics();
+        },
+        onStompError: (frame) => {
+          log(`❌ STOMP Error: ${frame.headers.message}`, 'error');
+          log(`Details: ${frame.body}`, 'error');
+          updateStatus(false);
+        },
+        onWebSocketError: (event) => {
+          log('❌ WebSocket Error', 'error');
+          updateStatus(false);
+        },
+        onWebSocketClose: () => {
+          log('Connection closed', 'info');
+          updateStatus(false);
+        },
+        debug: (str) => {
+          console.log('STOMP:', str);
+        }
+      });
+
+      stompClient.activate();
+    }
+
+    function subscribeToTopics() {
+      // Subscribe to slot updates
+      stompClient.subscribe('/topic/overview_updates', (message) => {
+        const event = JSON.parse(message.body);
+        eventCounts.slot++;
+        updateStats();
+        log(`🅿️ SLOT: ${JSON.stringify(event, null, 2)}`, 'slot');
+      });
+
+      // Subscribe to entry log events
+      stompClient.subscribe('/topic/entrylog_new_events', (message) => {
+        const event = JSON.parse(message.body);
+        eventCounts.entry++;
+        updateStats();
+        log(`🚗 ENTRY: ${JSON.stringify(event, null, 2)}`, 'entry');
+      });
+
+      // Subscribe to door updates
+      stompClient.subscribe('/topic/door_updates', (message) => {
+        const event = JSON.parse(message.body);
+        eventCounts.door++;
+        updateStats();
+        log(`🚪 DOOR: ${JSON.stringify(event, null, 2)}`, 'door');
+      });
+
+      // Subscribe to LCD updates
+      stompClient.subscribe('/topic/lcd_updates', (message) => {
+        const event = JSON.parse(message.body);
+        eventCounts.lcd++;
+        updateStats();
+        log(`📺 LCD: ${JSON.stringify(event, null, 2)}`, 'lcd');
+      });
+
+      log('👂 Subscribed to all topics', 'info');
+    }
+
+    function disconnect() {
+      if (stompClient) {
+        stompClient.deactivate();
+        stompClient = null;
+        log('Disconnected', 'info');
+        updateStatus(false);
+      }
+    }
+
+    function clearEvents() {
+      document.getElementById('events').innerHTML = '';
+      eventCounts = { slot: 0, entry: 0, door: 0, lcd: 0 };
+      updateStats();
+      log('Events cleared', 'info');
+    }
+
+    function testSlot() {
+      const token = document.getElementById('jwtToken').value.trim();
+      if (!token) {
+        alert('Please enter JWT token first!');
+        return;
+      }
+
+      log('Testing slot update via API...', 'info');
+      
+      fetch('http://localhost:8080/api/slots/1/status', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isOccupied: true })
+      })
+      .then(res => res.json())
+      .then(data => {
+        log(`API Response: ${JSON.stringify(data)}`, 'info');
+      })
+      .catch(err => {
+        log(`API Error: ${err.message}`, 'error');
+      });
+    }
+
+    function testEntry() {
+      log('To test entry event, publish MQTT message:', 'info');
+      log('Topic: parking/MC001/entry', 'info');
+      log('Payload: {"rfidCode":"RFID-001","licensePlate":"TEST-123"}', 'info');
+    }
+
+    // Instructions on load
+    window.onload = () => {
+      log('=== WebSocket Test Dashboard ===', 'info');
+      log('Instructions:', 'info');
+      log('1. Login to the app first', 'info');
+      log('2. Get your JWT token from cookies', 'info');
+      log('3. Paste token above and click Connect', 'info');
+      log('4. Trigger events and watch them appear here!', 'info');
+      log('================================', 'info');
+    };
+  </script>
+</body>
+</html>
+

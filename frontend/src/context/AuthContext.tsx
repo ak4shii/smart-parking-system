@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import type { User, LoginRequest, RegisterRequest } from '../services/authService';
+import { initializeCsrfToken } from '../services/csrfService';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
@@ -34,12 +35,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = authService.getToken();
-    if (token) {
-      setIsLoading(false);
-    } else {
-      setIsLoading(false);
-    }
+    const initializeAuth = async () => {
+      // Initialize CSRF token on app startup
+      await initializeCsrfToken();
+      
+      const token = authService.getToken();
+      if (token) {
+        setIsLoading(false);
+      } else {
+        setIsLoading(false);
+      }
+    };
+    
+    initializeAuth();
   }, []);
 
   const login = async (credentials: LoginRequest) => {
@@ -76,9 +84,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     authService.logout();
     setUser(null);
+    // Re-initialize CSRF token after logout
+    await initializeCsrfToken();
     toast.success('Logged out successfully');
     navigate('/login');
   };

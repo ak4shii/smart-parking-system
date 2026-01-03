@@ -1,5 +1,6 @@
 import api from './api';
 import Cookies from 'js-cookie';
+import { clearCsrfToken } from './csrfService';
 
 export interface LoginRequest {
   email: string;
@@ -56,6 +57,7 @@ class AuthService {
 
   logout(): void {
     Cookies.remove('jwt_token');
+    clearCsrfToken();
   }
 
   getToken(): string | undefined {
