@@ -40,15 +40,12 @@ public class SecurityConfig {
     @Order(SecurityProperties.BASIC_AUTH_ORDER)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf((csrfConfig) -> csrfConfig
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers("/api/**")
-                        .ignoringRequestMatchers(publicPaths.toArray(new String[0]))
-                )
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                .ignoringRequestMatchers(publicPaths.toArray(new String[0])))
                 .cors((corsConfig) -> corsConfig.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests((requests) -> {
-                    publicPaths.forEach(path ->
-                            requests.requestMatchers(path).permitAll());
+                    publicPaths.forEach(path -> requests.requestMatchers(path).permitAll());
                     requests.requestMatchers("/api/admins/**").hasRole("ADMIN");
                     requests.anyRequest().authenticated();
                 })
@@ -74,8 +71,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5174",
-                "http://localhost:5173"
-        ));
+                "http://localhost:5173"));
         config.setAllowedMethods(Collections.singletonList("*"));
         config.setAllowedHeaders(Collections.singletonList("*"));
         config.setAllowCredentials(true);

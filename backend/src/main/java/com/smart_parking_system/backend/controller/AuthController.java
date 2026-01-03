@@ -48,9 +48,7 @@ public class AuthController {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             loginRequestDto.email(),
-                            loginRequestDto.password()
-                    )
-            );
+                            loginRequestDto.password()));
 
             var userDto = new UserDto();
             var loggedUser = (User) authentication.getPrincipal();
@@ -98,7 +96,7 @@ public class AuthController {
         user.setRole("ROLE_USER");
         user.setEnabled(true);
         user.setCreatedAt(Instant.now());
-        User savedUser = userRepository.save(user);
+        userRepository.save(user);
         userRepository.flush();
         return ResponseEntity.status(HttpStatus.CREATED).body("Register successfully");
     }
