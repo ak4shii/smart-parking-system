@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,7 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
     private final SlotRepository slotRepository;
     private final MqttPahoClientFactory mqttClientFactory;
     private final ObjectMapper objectMapper;
+    private final MessageChannel mqttOutboundChannel;
 
     @Value("${MQTT_CLIENT_ID:sps-backend}")
     private String baseTopic;
@@ -158,12 +160,32 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
             }
         }
 
-        return new MqttProvisionResponseDto(
+        MqttProvisionResponseDto response = new MqttProvisionResponseDto(
                 true,
                 "Provisioning completed successfully",
                 doorResponses,
                 lcdResponses,
                 sensorResponses);
+
+        publishProvisionResponse(mcCode, response);
+
+        return response;
+    }
+
+    private void publishProvisionResponse(String mcCode, MqttProvisionResponseDto response) {
+        try {
+            String topic = baseTopic + "/" + mcCode + "/provision/response";
+            String json = objectMapper.writeValueAsString(response);
+
+            mqttOutboundChannel.send(
+                    org.springframework.messaging.support.MessageBuilder.withPayload(json)
+                            .setHeader(org.springframework.integration.mqtt.support.MqttHeaders.TOPIC, topic)
+                            .build());
+
+            log.info("Published provision response to topic: {}", topic);
+        } catch (Exception e) {
+            log.error("Failed to publish provision response for mcCode: {}", mcCode, e);
+        }
     }
 
     private Door findOrCreateDoor(Microcontroller mc, String name) {
