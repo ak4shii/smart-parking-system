@@ -50,16 +50,18 @@ public class AuthController {
                             loginRequestDto.email(),
                             loginRequestDto.password()));
 
-            var userDto = new UserDto();
             var loggedUser = (User) authentication.getPrincipal();
+
+            if (Boolean.FALSE.equals(loggedUser.getEnabled())) {
+                return buildErrorResponse(HttpStatus.FORBIDDEN, "Account is disabled");
+            }
+
+            var userDto = new UserDto();
             BeanUtils.copyProperties(loggedUser, userDto);
             userDto.setId(loggedUser.getId());
             userDto.setRole(loggedUser.getRole());
             userDto.setCreatedAt(loggedUser.getCreatedAt());
             String jwtToken = jwtUtil.generateJwtToken(authentication);
-
-            System.out.println(jwtToken);
-            System.out.println(userDto);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new LoginResponseDto(HttpStatus.OK.getReasonPhrase(), userDto, jwtToken));

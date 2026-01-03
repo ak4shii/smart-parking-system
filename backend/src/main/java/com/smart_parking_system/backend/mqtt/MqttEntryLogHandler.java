@@ -74,7 +74,7 @@ public class MqttEntryLogHandler {
 
     private void handleEntryMessage(String mcCode, String payload) throws Exception {
         MqttEntryRequestDto request = objectMapper.readValue(payload, MqttEntryRequestDto.class);
-        EntryLogDto created = mqttEntryLogService.handleEntry(mcCode, request.getRfidCode(), request.getLicensePlate());
+        EntryLogDto created = mqttEntryLogService.handleEntry(mcCode, request.getRfidCode(), request.getImageBase64());
 
         MqttEntryResponseDto response = new MqttEntryResponseDto(true, "OK", created.getId());
         publishResponse(baseTopic + "/" + mcCode + "/entry/response", response);

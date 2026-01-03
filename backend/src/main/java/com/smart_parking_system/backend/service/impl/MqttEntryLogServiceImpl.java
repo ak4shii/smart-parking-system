@@ -8,12 +8,15 @@ import com.smart_parking_system.backend.repository.EntryLogRepository;
 import com.smart_parking_system.backend.repository.MicrocontrollerRepository;
 import com.smart_parking_system.backend.repository.RfidRepository;
 import com.smart_parking_system.backend.service.IMqttEntryLogService;
+import com.smart_parking_system.backend.service.YoloService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MqttEntryLogServiceImpl implements IMqttEntryLogService {
@@ -21,10 +24,11 @@ public class MqttEntryLogServiceImpl implements IMqttEntryLogService {
     private final EntryLogRepository entryLogRepository;
     private final RfidRepository rfidRepository;
     private final MicrocontrollerRepository microcontrollerRepository;
+    private final YoloService yoloService;
 
     @Override
     @Transactional
-    public EntryLogDto handleEntry(String mcCode, String rfidCode, String licensePlate) {
+    public EntryLogDto handleEntry(String mcCode, String rfidCode, String imageBase64) {
         Microcontroller mc = microcontrollerRepository.findByMcCode(mcCode)
                 .orElseThrow(() -> new RuntimeException("Microcontroller not found: " + mcCode));
 
@@ -42,6 +46,13 @@ public class MqttEntryLogServiceImpl implements IMqttEntryLogService {
         entryLogRepository.findActiveByRfidId(rfid.getId()).ifPresent(active -> {
             throw new RuntimeException("This RFID already has an active entry log");
         });
+
+        String licensePlate = yoloService.detectLicensePlate(imageBase64);
+
+        if (licensePlate == null || licensePlate.trim().isEmpty()) {
+            log.warn("Failed to detect license plate for RFID: {}", rfidCode);
+            licensePlate = "UNKNOWN";
+        }
 
         EntryLog entryLog = new EntryLog();
         entryLog.setRfid(rfid);

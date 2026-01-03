@@ -3,6 +3,7 @@ package com.smart_parking_system.backend.service.impl;
 import com.smart_parking_system.backend.dto.CreateMicrocontrollerRequestDto;
 import com.smart_parking_system.backend.dto.MicrocontrollerDto;
 import com.smart_parking_system.backend.dto.UpdateMicrocontrollerRequestDto;
+import com.smart_parking_system.backend.dto.mqtt.MqttProvisionRequestDto;
 import com.smart_parking_system.backend.entity.Microcontroller;
 import com.smart_parking_system.backend.entity.ParkingSpace;
 import com.smart_parking_system.backend.entity.User;
@@ -11,7 +12,9 @@ import com.smart_parking_system.backend.repository.ParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.IMicrocontrollerService;
+import com.smart_parking_system.backend.service.IMqttProvisionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
@@ -29,6 +33,7 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final UserParkingSpaceRepository userParkingSpaceRepository;
     private final UserRepository userRepository;
+    private final IMqttProvisionService mqttProvisionService;
 
     @Override
     @Transactional
@@ -36,13 +41,23 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
         User currentUser = getCurrentUser();
 
         ParkingSpace ps = parkingSpaceRepository.findById(requestDto.getParkingSpaceId())
-                .orElseThrow(() -> new RuntimeException("Parking space not found with id: " + requestDto.getParkingSpaceId()));
+                .orElseThrow(() -> new RuntimeException(
+                        "Parking space not found with id: " + requestDto.getParkingSpaceId()));
 
         requireMembership(currentUser.getId(), ps.getId());
 
         microcontrollerRepository.findByMcCode(requestDto.getMcCode()).ifPresent(mc -> {
             throw new RuntimeException("mcCode already exists");
         });
+
+        MqttProvisionRequestDto provisionData = mqttProvisionService.checkForProvisionData(
+                requestDto.getMcCode(),
+                10);
+
+        if (provisionData == null) {
+            throw new RuntimeException("No provision data found for mcCode: " + requestDto.getMcCode() +
+                    ". ESP32 must send provision request first.");
+        }
 
         Microcontroller mc = new Microcontroller();
         mc.setMcCode(requestDto.getMcCode());
@@ -52,6 +67,12 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
 
         Microcontroller saved = microcontrollerRepository.save(mc);
         microcontrollerRepository.flush();
+
+        try {
+            mqttProvisionService.handleProvision(requestDto.getMcCode(), provisionData);
+        } catch (Exception e) {
+            log.error("Failed to provision components for mcCode: {}", requestDto.getMcCode(), e);
+        }
 
         return toDto(saved);
     }
@@ -73,7 +94,8 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
         User currentUser = getCurrentUser();
 
         List<Integer> psIds = userParkingSpaceRepository.findParkingSpaceIdsByUserId(currentUser.getId());
-        if (psIds.isEmpty()) return List.of();
+        if (psIds.isEmpty())
+            return List.of();
 
         return microcontrollerRepository.findAll().stream()
                 .filter(mc -> mc.getPs() != null && psIds.contains(mc.getPs().getId()))
@@ -135,4 +157,3 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
         return dto;
     }
 }
-
