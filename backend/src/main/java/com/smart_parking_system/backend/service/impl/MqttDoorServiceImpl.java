@@ -8,6 +8,7 @@ import com.smart_parking_system.backend.dto.mqtt.MqttDoorStatusDto;
 import com.smart_parking_system.backend.entity.Door;
 import com.smart_parking_system.backend.repository.DoorRepository;
 import com.smart_parking_system.backend.service.IMqttDoorService;
+import com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ public class MqttDoorServiceImpl implements IMqttDoorService {
     private final DoorRepository doorRepository;
     private final ObjectMapper objectMapper;
     private final MessageChannel mqttOutboundChannel;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Value("${mqtt.base-topic}")
     private String baseTopic;
@@ -70,6 +72,18 @@ public class MqttDoorServiceImpl implements IMqttDoorService {
 
         Door saved = doorRepository.save(door);
         doorRepository.flush();
+
+        // Publish WebSocket event for real-time updates
+        Integer parkingSpaceId = saved.getMc() != null && saved.getMc().getParkingSpace() != null 
+                ? saved.getMc().getParkingSpace().getId() 
+                : null;
+        realtimeEventPublisher.publishDoorChanged(
+                saved.getId(),
+                saved.getName(),
+                saved.getIsOpened(),
+                saved.getMc() != null ? saved.getMc().getId() : null,
+                parkingSpaceId
+        );
 
         return toDto(saved);
     }

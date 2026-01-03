@@ -7,9 +7,11 @@ import { useAuth } from '../context/AuthContext';
 import doorService, { type DoorDto } from '../services/doorService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
 import microcontrollerService, { type MicrocontrollerDto } from '../services/microcontrollerService';
+import { useWebSocket } from '../services/websocket';
 
 export default function DoorPage() {
   const { user, logout } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigate = useNavigate();
 
   const [doors, setDoors] = useState<DoorDto[]>([]);
@@ -69,6 +71,33 @@ export default function DoorPage() {
   useEffect(() => {
     fetchDoors();
   }, []);
+
+  // Subscribe to real-time door updates
+  useEffect(() => {
+    if (!selectedParkingSpaceId) return;
+
+    const unsubscribe = subscribe('/topic/door_updates', (event: any) => {
+      // Only process events for the currently selected parking space
+      if (event?.type === 'door_changed' && event.parkingSpaceId === selectedParkingSpaceId) {
+        // Update the door in the list
+        setDoors((prevDoors) =>
+          prevDoors.map((door) =>
+            door.id === event.doorId
+              ? { ...door, isOpened: event.isOpened }
+              : door
+          )
+        );
+        
+        // Show toast notification
+        const status = event.isOpened ? 'opened' : 'closed';
+        toast.success(`Door "${event.doorName}" ${status}`);
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [subscribe, selectedParkingSpaceId]);
 
   const toggleDoor = async (door: DoorDto) => {
     try {
