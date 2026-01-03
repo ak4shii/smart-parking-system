@@ -1,5 +1,4 @@
 import api from './api';
-import Cookies from 'js-cookie';
 
 export interface LoginRequest {
   email: string;
@@ -36,30 +35,43 @@ export interface RegisterErrorResponse {
 class AuthService {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await api.post<LoginResponse>('/api/auth/login', credentials);
-    
-    if (response.data.jwtToken) {
-      Cookies.set('jwt_token', response.data.jwtToken, { expires: 1 });
+
+    if (response.data.jwtToken && response.data.user) {
+      localStorage.setItem('token', response.data.jwtToken);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      try {
+        await api.get('/csrf-token');
+      } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+      }
     }
-    
+
     return response.data;
   }
 
   async register(userData: RegisterRequest): Promise<string> {
     const response = await api.post<string | RegisterErrorResponse>('/api/auth/register', userData);
-    
+
     if (typeof response.data === 'string') {
       return response.data;
     }
-    
+
     throw response.data;
   }
 
   logout(): void {
-    Cookies.remove('jwt_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    const cookiesToClear = ['jwt_token', 'JSESSIONID', 'XSRF-TOKEN', 'session'];
+    cookiesToClear.forEach(cookieName => {
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    });
   }
 
-  getToken(): string | undefined {
-    return Cookies.get('jwt_token');
+  getToken(): string | null {
+    return localStorage.getItem('token');
   }
 
   isAuthenticated(): boolean {

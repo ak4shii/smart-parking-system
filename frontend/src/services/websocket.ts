@@ -27,8 +27,8 @@ class WebSocketService {
   private reconnectDelay = 3000; // 3 seconds
 
   public connect() {
-    // Your app stores JWT in cookie `jwt_token` (see api.ts)
-    const token = this.getCookie("jwt_token");
+    // Read JWT token from localStorage
+    const token = localStorage.getItem('token');
 
     // If no token, do not connect (user not logged in)
     if (!token) return;
@@ -44,7 +44,7 @@ class WebSocketService {
         Authorization: `Bearer ${token}`,
       },
       // Disable STOMP internal debug spam; rely on our own logs
-      debug: () => {},
+      debug: () => { },
       reconnectDelay: 0, // we handle reconnect ourselves
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -70,13 +70,6 @@ class WebSocketService {
     });
 
     this.client.activate();
-  }
-
-  private getCookie(name: string): string | null {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()!.split(";").shift() || null;
-    return null;
   }
 
   private attemptReconnect() {
@@ -177,7 +170,7 @@ export function useWebSocket() {
 
   const subscribe = useCallback(
     (destination: string, handler: EventHandler) => {
-      if (!isAuthenticated) return () => {};
+      if (!isAuthenticated) return () => { };
 
       const unsubscribe = webSocketService.subscribe(destination, handler);
       subscriptions.current.push(unsubscribe);

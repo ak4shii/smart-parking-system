@@ -9,10 +9,9 @@ import java.util.List;
 public class PublicPathConfig {
 
     @Bean
-    public List<String> publicPaths(){
+    public List<String> publicPaths() {
         return List.of(
-                "/api/auth/**"
-        );
+                "/api/auth/**",
+                "/ws/**");
     }
 }
-

@@ -58,6 +58,9 @@ public class AuthController {
             userDto.setCreatedAt(loggedUser.getCreatedAt());
             String jwtToken = jwtUtil.generateJwtToken(authentication);
 
+            System.out.println(jwtToken);
+            System.out.println(userDto);
+
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new LoginResponseDto(HttpStatus.OK.getReasonPhrase(), userDto, jwtToken));
         } catch (BadCredentialsException e) {
