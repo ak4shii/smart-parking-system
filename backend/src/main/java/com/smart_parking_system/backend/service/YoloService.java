@@ -18,7 +18,7 @@ public class YoloService {
 
     private final RestTemplate restTemplate;
 
-    @Value("${yolo.server.url:http://100.121.164.7:8000}")
+    @Value("${yolo.server.url:http://100.121.164.7:8000/upload}")
     private String yoloServerUrl;
 
     YoloResponseDto responseDto;
