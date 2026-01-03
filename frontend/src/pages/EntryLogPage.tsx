@@ -15,12 +15,14 @@ import {
   LogIn,
   LogOut as LogOutIcon,
   Calendar,
+  Camera, // Import Camera icon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '../context/AuthContext';
 import entryLogService, { type EntryLogDto } from '../services/entryLogService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
+import s3Service from '../services/s3Service'; // Import S3 service
 import { useWebSocket } from '../services/websocket';
 
 export default function EntryLogPage() {
@@ -51,7 +53,7 @@ export default function EntryLogPage() {
       if (event?.type === 'entrylog_event' && event.parkingSpaceId === selectedParkingSpaceId) {
         // Refresh the entry logs when a new event occurs
         fetchEntryLogs(selectedParkingSpaceId);
-        
+
         // Show toast notification
         const action = event.action === 'vehicle_entered' ? 'entered' : 'exited';
         toast.success(`Vehicle ${event.licensePlate} ${action}`);
@@ -110,6 +112,26 @@ export default function EntryLogPage() {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
+  };
+
+  const handleViewLicensePlateImage = async (log: EntryLogDto) => {
+    const key = log.licensePlateImageKey;
+    if (!key) {
+      toast.error('No license plate image available for this log');
+      return;
+    }
+
+    try {
+      const url = await s3Service.presignGet(key);
+      if (!url) {
+        toast.error('Could not generate image URL');
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error getting S3 image URL:', error);
+      toast.error('Failed to open license plate image');
+    }
   };
 
   const selectedParkingSpace = parkingSpaces.find(ps => ps.id === selectedParkingSpaceId);
@@ -278,6 +300,7 @@ export default function EntryLogPage() {
                       <tr className="border-b border-slate-200">
                         <th className="pb-3 text-left text-xs font-semibold text-slate-600">ID</th>
                         <th className="pb-3 text-left text-xs font-semibold text-slate-600">License Plate</th>
+                        <th className="pb-3 text-left text-xs font-semibold text-slate-600">Plate Image</th>
                         <th className="pb-3 text-left text-xs font-semibold text-slate-600">RFID Code</th>
                         <th className="pb-3 text-left text-xs font-semibold text-slate-600">Entry Time</th>
                         <th className="pb-3 text-left text-xs font-semibold text-slate-600">Exit Time</th>
@@ -298,6 +321,21 @@ export default function EntryLogPage() {
                                 </div>
                                 <span className="font-medium text-slate-900">{log.licensePlate}</span>
                               </div>
+                            </td>
+                            <td className="py-3">
+                              {log.licensePlateImageKey ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewLicensePlateImage(log)}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                                  title="Open license plate image"
+                                >
+                                  <Camera className="h-4 w-4 text-slate-600" />
+                                  View
+                                </button>
+                              ) : (
+                                <span className="text-sm text-slate-400">—</span>
+                              )}
                             </td>
                             <td className="py-3 text-sm text-slate-600">{log.rfidCode}</td>
                             <td className="py-3">

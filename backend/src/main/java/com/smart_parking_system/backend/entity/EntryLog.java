@@ -26,6 +26,9 @@ public class EntryLog {
     @Column(name = "license_plate", length = Integer.MAX_VALUE)
     private String licensePlate;
 
+    @Column(name = "license_plate_image_key", length = Integer.MAX_VALUE)
+    private String licensePlateImageKey;
+
     @Column(name = "in_time")
     private Instant inTime;
 

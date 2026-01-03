@@ -50,14 +50,10 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
             throw new RuntimeException("mcCode already exists");
         });
 
+        // Check for MQTT provision data (optional - allows creating microcontroller without ESP32 being online)
         MqttProvisionRequestDto provisionData = mqttProvisionService.checkForProvisionData(
                 requestDto.getMcCode(),
                 10);
-
-        if (provisionData == null) {
-            throw new RuntimeException("No provision data found for mcCode: " + requestDto.getMcCode() +
-                    ". ESP32 must send provision request first.");
-        }
 
         Microcontroller mc = new Microcontroller();
         mc.setMcCode(requestDto.getMcCode());
@@ -68,10 +64,16 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
         Microcontroller saved = microcontrollerRepository.save(mc);
         microcontrollerRepository.flush();
 
-        try {
-            mqttProvisionService.handleProvision(requestDto.getMcCode(), provisionData);
-        } catch (Exception e) {
-            log.error("Failed to provision components for mcCode: {}", requestDto.getMcCode(), e);
+        // If provision data exists, handle provisioning immediately
+        // Otherwise, provisioning will happen when ESP32 sends provision request
+        if (provisionData != null) {
+            try {
+                mqttProvisionService.handleProvision(requestDto.getMcCode(), provisionData);
+            } catch (Exception e) {
+                log.error("Failed to provision components for mcCode: {}", requestDto.getMcCode(), e);
+            }
+        } else {
+            log.info("Microcontroller created without provision data. Will be provisioned when ESP32 connects with mcCode: {}", requestDto.getMcCode());
         }
 
         return toDto(saved);

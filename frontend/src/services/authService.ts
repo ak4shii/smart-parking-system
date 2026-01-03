@@ -39,12 +39,6 @@ class AuthService {
     if (response.data.jwtToken && response.data.user) {
       localStorage.setItem('token', response.data.jwtToken);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-
-      try {
-        await api.get('/csrf-token');
-      } catch (error) {
-        console.error('Failed to fetch CSRF token:', error);
-      }
     }
 
     return response.data;

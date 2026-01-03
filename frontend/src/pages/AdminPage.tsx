@@ -26,11 +26,8 @@ import parkingSpaceService, {
   type UpdateParkingSpaceRequest,
 } from '../services/parkingSpaceService';
 import microcontrollerService, { type CreateMicrocontrollerRequest } from '../services/microcontrollerService';
-import slotService, { type CreateSlotRequest } from '../services/slotService';
-import rfidService, { type CreateRfidRequest } from '../services/rfidService';
-import sensorService, { type CreateSensorRequest } from '../services/sensorService';
 
-type WizardStep = 1 | 2 | 3 | 4 | 5;
+type WizardStep = 1 | 2 | 3;
 
 interface ParkingSpaceFormData {
   name: string;
@@ -40,19 +37,6 @@ interface ParkingSpaceFormData {
 interface MicrocontrollerFormData {
   mcCode: string;
   name: string;
-}
-
-interface SetupFormData {
-  numSlots: number;
-}
-
-interface RfidCardData {
-  rfidCode: string;
-}
-
-interface SensorData {
-  name: string;
-  type: 'ultrasonic' | 'infrared';
 }
 
 export default function AdminPage() {
@@ -75,19 +59,8 @@ export default function AdminPage() {
     mcCode: '',
     name: '',
   });
-  const [setupData, setSetupData] = useState<SetupFormData>({
-    numSlots: 3,
-  });
-  const [rfidCards, setRfidCards] = useState<RfidCardData[]>([
-    { rfidCode: '' },
-    { rfidCode: '' },
-    { rfidCode: '' },
-  ]);
-  const [sensors, setSensors] = useState<SensorData[]>([
-    { name: '', type: 'ultrasonic' },
-    { name: '', type: 'ultrasonic' },
-    { name: '', type: 'ultrasonic' },
-  ]);
+  
+  
 
   // Validation errors state
   const [validationErrors, setValidationErrors] = useState<{
@@ -124,17 +97,6 @@ export default function AdminPage() {
     setWizardStep(1);
     setParkingSpaceData({ name: '', location: '' });
     setMicrocontrollerData({ mcCode: '', name: '' });
-    setSetupData({ numSlots: 3 });
-    setRfidCards([
-      { rfidCode: '' },
-      { rfidCode: '' },
-      { rfidCode: '' },
-    ]);
-    setSensors([
-      { name: '', type: 'ultrasonic' },
-      { name: '', type: 'ultrasonic' },
-      { name: '', type: 'ultrasonic' },
-    ]);
     setValidationErrors({});
   };
 
@@ -189,22 +151,7 @@ export default function AdminPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const validateStep3 = (): boolean => {
-    // Validate that we have at least 1 slot
-    if (setupData.numSlots < 1) {
-      toast.error('Please configure at least 1 parking slot');
-      return false;
-    }
-
-    // Validate that we have at least 1 RFID card
-    if (rfidCards.length < 1) {
-      toast.error('Please configure at least 1 RFID card');
-      return false;
-    }
-
-    // Sensors are auto-generated for each slot, so no need to validate separately
-    return true;
-  };
+  
 
   const handleNextStep = () => {
     let isValid = false;
@@ -216,9 +163,7 @@ export default function AdminPage() {
       case 2:
         isValid = validateStep2();
         break;
-      case 3:
-        isValid = validateStep3();
-        break;
+      
       default:
         isValid = true;
     }
@@ -254,51 +199,29 @@ export default function AdminPage() {
         ...microcontrollerData,
         parkingSpaceId: parkingSpace.id,
       };
-      const microcontroller = await microcontrollerService.createMicrocontroller(mcRequest);
-      toast.success('Microcontroller created!');
-
-      // Step 3: Create Slots
-      const slotPromises = Array.from({ length: setupData.numSlots }).map(() => {
-        const slotRequest: CreateSlotRequest = {
-          parkingSpaceId: parkingSpace.id,
-        };
-        return slotService.createSlot(slotRequest);
-      });
-      const createdSlots = await Promise.all(slotPromises);
-      toast.success(`${createdSlots.length} slots created!`);
-
-      // Step 4: Create Sensors (one per slot with custom config)
-      const sensorPromises = createdSlots.map((slot, index) => {
-        const sensorConfig = sensors[index] || { name: `Sensor-${index + 1}`, type: 'ultrasonic' as const };
-        const sensorRequest: CreateSensorRequest = {
-          name: sensorConfig.name || `Sensor-${index + 1}`,
-          type: sensorConfig.type,
-          slotId: slot.id,
-          microcontrollerId: microcontroller.id,
-        };
-        return sensorService.createSensor(sensorRequest);
-      });
-      await Promise.all(sensorPromises);
-      toast.success(`${sensorPromises.length} sensors created!`);
-
-      // Step 5: Create RFID Cards (with custom codes)
-      const rfidPromises = rfidCards.map((rfidCard, index) => {
-        const rfidRequest: CreateRfidRequest = {
-          rfidCode: rfidCard.rfidCode || `RFID-${parkingSpace.name.toUpperCase().replace(/\s/g, '-')}-${String(index + 1).padStart(3, '0')}`,
-          parkingSpaceId: parkingSpace.id,
-        };
-        return rfidService.createRfid(rfidRequest);
-      });
-      await Promise.all(rfidPromises);
-      toast.success(`${rfidPromises.length} RFID cards created!`);
-
-      toast.success('Parking space setup completed successfully!');
+      await microcontrollerService.createMicrocontroller(mcRequest);
+      toast.success('Parking space created successfully! (Provision will create slots/sensors/RFID later)');
       setShowCreateWizard(false);
       resetWizard();
       fetchParkingSpaces();
     } catch (error: any) {
       console.error('Error creating parking space:', error);
-      toast.error(error.response?.data?.message || 'Failed to create parking space');
+      
+      // Provide specific error messages
+      if (error.response?.data?.error) {
+        toast.error(error.response.data.error);
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.response?.status === 400) {
+        toast.error('Invalid data provided. Please check all fields and try again.');
+      } else if (error.response?.status === 403) {
+        toast.error('You do not have permission to perform this action');
+      } else if (error.response?.status === 401) {
+        toast.error('Your session has expired. Please log in again');
+        logout();
+      } else {
+        toast.error(error.message || 'Failed to create parking space. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -333,17 +256,33 @@ export default function AdminPage() {
   };
 
   const handleDeleteSpace = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"? This will also delete all associated slots, sensors, and RFID cards.`)) {
+    if (!confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone. Related data (slots/sensors/RFID/logs) may also be removed depending on provisioning and database cascade rules.`)) {
       return;
     }
 
     try {
+      setIsSubmitting(true);
       await parkingSpaceService.deleteParkingSpace(id);
-      toast.success('Parking space deleted successfully');
-      fetchParkingSpaces();
+      toast.success(`Parking space "${name}" deleted successfully`);
+      await fetchParkingSpaces();
     } catch (error: any) {
       console.error('Error deleting parking space:', error);
-      toast.error('Failed to delete parking space');
+      
+      // Provide more specific error messages
+      if (error.response?.status === 403) {
+        toast.error('You do not have permission to delete this parking space');
+      } else if (error.response?.status === 404) {
+        toast.error('Parking space not found');
+      } else if (error.response?.status === 401) {
+        toast.error('Your session has expired. Please log in again');
+        logout();
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error(error.message || 'Failed to delete parking space. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -455,190 +394,31 @@ export default function AdminPage() {
           </div>
         );
 
+      
+
       case 3:
         return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-slate-900">Step 3: Configure Slots & Devices</h3>
-            
-            {/* Number of Slots */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Number of Parking Slots *</label>
-              <input
-                type="number"
-                value={setupData.numSlots}
-                onChange={(e) => {
-                  const numSlots = parseInt(e.target.value) || 1;
-                  setSetupData({ numSlots });
-                  
-                  // Update sensors array to match number of slots
-                  const newSensors = Array.from({ length: numSlots }, (_, i) => 
-                    sensors[i] || { name: '', type: 'ultrasonic' as const }
-                  );
-                  setSensors(newSensors);
-                  
-                  // Update RFID cards array to match number of slots (default same as slots)
-                  const newRfids = Array.from({ length: numSlots }, (_, i) => 
-                    rfidCards[i] || { rfidCode: '' }
-                  );
-                  setRfidCards(newRfids);
-                }}
-                min={1}
-                max={100}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                required
-              />
-              <p className="mt-1 text-xs text-slate-500">How many vehicles can park here? (Sensors will be created for each slot)</p>
-            </div>
-
-            {/* RFID Cards Configuration */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-slate-900">RFID Cards ({rfidCards.length})</h4>
-                <button
-                  type="button"
-                  onClick={() => setRfidCards([...rfidCards, { rfidCode: '' }])}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold"
-                >
-                  + Add More
-                </button>
-              </div>
-              <div className="space-y-2">
-                {rfidCards.map((rfid, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-500 w-16">Card {index + 1}:</span>
-                    <input
-                      type="text"
-                      placeholder={`RFID-${String(index + 1).padStart(3, '0')}`}
-                      value={rfid.rfidCode}
-                      onChange={(e) => {
-                        const newRfids = [...rfidCards];
-                        newRfids[index].rfidCode = e.target.value;
-                        setRfidCards(newRfids);
-                      }}
-                      className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100"
-                    />
-                    {rfidCards.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setRfidCards(rfidCards.filter((_, i) => i !== index))}
-                        className="text-xs text-rose-600 hover:text-rose-700 px-2"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sensors Configuration */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <h4 className="text-sm font-semibold text-slate-900 mb-3">Sensors (1 per slot)</h4>
-              <div className="space-y-3">
-                {sensors.map((sensor, index) => (
-                  <div key={index} className="rounded-lg bg-white border border-slate-200 p-3">
-                    <div className="text-xs font-semibold text-slate-500 mb-2">Slot {index + 1} Sensor</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs text-slate-600 mb-1">Name</label>
-                        <input
-                          type="text"
-                          placeholder={`Sensor-${index + 1}`}
-                          value={sensor.name}
-                          onChange={(e) => {
-                            const newSensors = [...sensors];
-                            newSensors[index].name = e.target.value;
-                            setSensors(newSensors);
-                          }}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-slate-600 mb-1">Type</label>
-                        <select
-                          value={sensor.type}
-                          onChange={(e) => {
-                            const newSensors = [...sensors];
-                            newSensors[index].type = e.target.value as 'ultrasonic' | 'infrared';
-                            setSensors(newSensors);
-                          }}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100"
-                        >
-                          <option value="ultrasonic">Ultrasonic</option>
-                          <option value="infrared">Infrared</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900">Step 4: Review Configuration</h3>
-            
+            <h3 className="text-lg font-semibold text-slate-900">Step 3: Review</h3>
+
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
               <div>
                 <div className="text-xs font-semibold text-slate-500">Parking Space</div>
                 <div className="text-sm font-semibold text-slate-900">{parkingSpaceData.name}</div>
                 <div className="text-xs text-slate-600">{parkingSpaceData.location}</div>
               </div>
-              
+
               <div className="border-t border-slate-200 pt-3">
                 <div className="text-xs font-semibold text-slate-500">Microcontroller</div>
-                <div className="text-sm text-slate-900">{microcontrollerData.mcCode} - {microcontrollerData.name}</div>
-              </div>
-              
-              <div className="border-t border-slate-200 pt-3">
-                <div className="text-xs font-semibold text-slate-500 mb-2">Summary</div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
-                    <div className="text-slate-500">Slots</div>
-                    <div className="mt-1 font-semibold text-slate-900">{setupData.numSlots}</div>
-                  </div>
-                  <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
-                    <div className="text-slate-500">RFIDs</div>
-                    <div className="mt-1 font-semibold text-slate-900">{rfidCards.length}</div>
-                  </div>
-                  <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
-                    <div className="text-slate-500">Sensors</div>
-                    <div className="mt-1 font-semibold text-slate-900">{sensors.length}</div>
-                  </div>
+                <div className="text-sm text-slate-900">
+                  {microcontrollerData.mcCode} - {microcontrollerData.name}
                 </div>
               </div>
 
               <div className="border-t border-slate-200 pt-3">
-                <div className="text-xs font-semibold text-slate-500 mb-2">RFID Cards ({rfidCards.length})</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {rfidCards.map((rfid, index) => (
-                    <div key={index} className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
-                      <div className="text-slate-500">Card {index + 1}</div>
-                      <div className="mt-1 font-mono text-slate-900">{rfid.rfidCode || `RFID-${String(index + 1).padStart(3, '0')}`}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-slate-200 pt-3">
-                <div className="text-xs font-semibold text-slate-500 mb-2">Sensors ({sensors.length})</div>
-                <div className="space-y-2">
-                  {sensors.map((sensor, index) => (
-                    <div key={index} className="rounded-lg bg-white p-2 ring-1 ring-slate-200 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-semibold text-slate-900">Slot {index + 1}:</span>{' '}
-                        <span className="text-slate-600">{sensor.name || `Sensor-${index + 1}`}</span>
-                      </div>
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        sensor.type === 'ultrasonic' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                      }`}>
-                        {sensor.type}
-                      </span>
-                    </div>
-                  ))}
+                <div className="text-xs font-semibold text-slate-500">Provisioning</div>
+                <div className="text-sm text-slate-600">
+                  Slots / Sensors / RFID will be created by the provision process after this parking space is created.
                 </div>
               </div>
             </div>
@@ -855,10 +635,11 @@ export default function AdminPage() {
                             </button>
                             <button
                               onClick={() => handleDeleteSpace(space.id, space.name)}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                              disabled={isSubmitting}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                              {isSubmitting ? 'Deleting...' : 'Delete'}
                             </button>
                           </div>
                         </td>
@@ -894,7 +675,7 @@ export default function AdminPage() {
             {/* Progress Steps - Fixed */}
             <div className="px-6 pt-4 pb-6 border-b border-slate-200">
               <div className="flex items-center justify-between">
-                {[1, 2, 3, 4].map((step) => (
+                {[1, 2, 3].map((step) => (
                   <div key={step} className="flex items-center">
                     <div
                       className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
@@ -935,7 +716,7 @@ export default function AdminPage() {
                     Back
                   </button>
                 )}
-                {wizardStep < 4 ? (
+                {wizardStep < 3 ? (
                   <button
                     type="button"
                     onClick={handleNextStep}

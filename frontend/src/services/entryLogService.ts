@@ -5,6 +5,8 @@ export interface EntryLogDto {
   rfidId: number;
   rfidCode: string;
   licensePlate: string;
+  /** S3 object key/path (or CloudFront origin path) for the plate image */
+  licensePlateImageKey?: string | null;
   inTime: string;
   outTime: string | null;
   parkingSpaceId: number;
