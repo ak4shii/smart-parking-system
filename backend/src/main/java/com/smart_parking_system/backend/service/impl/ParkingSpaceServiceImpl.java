@@ -15,6 +15,7 @@ import com.smart_parking_system.backend.service.IParkingSpaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,8 +98,15 @@ public class ParkingSpaceServiceImpl implements IParkingSpaceService {
         ParkingSpace parkingSpace = parkingSpaceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Parking space not found with id: " + id));
 
-        requireOwner(currentUser, parkingSpace);
+        // Check if user is admin
+        boolean isAdmin = isAdmin(currentUser);
+        
+        // Admins can delete any parking space, regular users must be members
+        if (!isAdmin) {
+            requireMembership(currentUser.getId(), id);
+        }
 
+        // Delete all user-parking space relationships
         List<Integer> userIds = userParkingSpaceRepository.findUserIdsByParkingSpaceId(id);
         for (Integer userId : userIds) {
             UserParkingSpaceId upsId = new UserParkingSpaceId();
@@ -107,6 +115,7 @@ public class ParkingSpaceServiceImpl implements IParkingSpaceService {
             userParkingSpaceRepository.deleteById(upsId);
         }
 
+        // Delete the parking space itself
         parkingSpaceRepository.delete(parkingSpace);
     }
 
@@ -232,6 +241,10 @@ public class ParkingSpaceServiceImpl implements IParkingSpaceService {
         String email = authentication.getName();
         return userRepository.findUserByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRole() != null && user.getRole().equals("ROLE_ADMIN");
     }
 
     private ParkingSpaceDto convertToDto(ParkingSpace parkingSpace) {

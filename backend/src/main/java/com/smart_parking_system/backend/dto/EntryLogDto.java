@@ -17,4 +17,10 @@ public class EntryLogDto {
     private Instant inTime;
     private Instant outTime;
     private Integer parkingSpaceId;
+
+    /**
+     * Key/path of the license plate image in S3 (or CloudFront origin), e.g. "plates/ps-1/log-10.jpg".
+     * Provision/YOLO pipeline should set this when available.
+     */
+    private String licensePlateImageKey;
 }

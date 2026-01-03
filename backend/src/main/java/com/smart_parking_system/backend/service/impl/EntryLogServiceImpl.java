@@ -63,6 +63,7 @@ public class EntryLogServiceImpl implements IEntryLogService {
         EntryLogDto dto = new EntryLogDto();
         dto.setId(el.getId());
         dto.setLicensePlate(el.getLicensePlate());
+        dto.setLicensePlateImageKey(el.getLicensePlateImageKey());
         dto.setInTime(el.getInTime());
         dto.setOutTime(el.getOutTime());
 
