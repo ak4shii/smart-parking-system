@@ -44,11 +44,11 @@ public class EntryLogController {
         }
     }
 
-    @PostMapping("/entry")
+    @PostMapping(value = "/entry", consumes = "multipart/form-data")
     public ResponseEntity<EntryResponseDto> handleEntry(
             @RequestParam("mcCode") String mcCode,
             @RequestParam("rfidCode") String rfidCode,
-            @RequestParam("image") MultipartFile image) {
+            @RequestPart("image") MultipartFile image) {
         try {
             byte[] imageBytes = image.getBytes();
             String imageBase64 = Base64.getEncoder().encodeToString(imageBytes);
