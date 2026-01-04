@@ -3,7 +3,6 @@ package com.smart_parking_system.backend.service.impl;
 import com.smart_parking_system.backend.dto.CreateMicrocontrollerRequestDto;
 import com.smart_parking_system.backend.dto.MicrocontrollerDto;
 import com.smart_parking_system.backend.dto.UpdateMicrocontrollerRequestDto;
-import com.smart_parking_system.backend.dto.mqtt.MqttProvisionRequestDto;
 import com.smart_parking_system.backend.entity.Microcontroller;
 import com.smart_parking_system.backend.entity.ParkingSpace;
 import com.smart_parking_system.backend.entity.User;
@@ -12,7 +11,6 @@ import com.smart_parking_system.backend.repository.ParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.IMicrocontrollerService;
-import com.smart_parking_system.backend.service.IMqttProvisionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -33,7 +31,6 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
     private final ParkingSpaceRepository parkingSpaceRepository;
     private final UserParkingSpaceRepository userParkingSpaceRepository;
     private final UserRepository userRepository;
-    private final IMqttProvisionService mqttProvisionService;
 
     @Override
     @Transactional
@@ -50,11 +47,6 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
             throw new RuntimeException("mcCode already exists");
         });
 
-        // Check for MQTT provision data (optional - allows creating microcontroller without ESP32 being online)
-        MqttProvisionRequestDto provisionData = mqttProvisionService.checkForProvisionData(
-                requestDto.getMcCode(),
-                10);
-
         Microcontroller mc = new Microcontroller();
         mc.setMcCode(requestDto.getMcCode());
         mc.setName(requestDto.getName());
@@ -64,17 +56,7 @@ public class MicrocontrollerServiceImpl implements IMicrocontrollerService {
         Microcontroller saved = microcontrollerRepository.save(mc);
         microcontrollerRepository.flush();
 
-        // If provision data exists, handle provisioning immediately
-        // Otherwise, provisioning will happen when ESP32 sends provision request
-        if (provisionData != null) {
-            try {
-                mqttProvisionService.handleProvision(requestDto.getMcCode(), provisionData);
-            } catch (Exception e) {
-                log.error("Failed to provision components for mcCode: {}", requestDto.getMcCode(), e);
-            }
-        } else {
-            log.info("Microcontroller created without provision data. Will be provisioned when ESP32 connects with mcCode: {}", requestDto.getMcCode());
-        }
+        log.info("Microcontroller created: {}. ESP32 can provision anytime via MQTT.", requestDto.getMcCode());
 
         return toDto(saved);
     }

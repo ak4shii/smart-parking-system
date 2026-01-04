@@ -128,3 +128,8 @@ ALTER TABLE "entry_log"
     ADD CONSTRAINT "fk_entry_log_rfid"
         FOREIGN KEY ("rfid_id") REFERENCES "rfid" ("rfid_id")
             ON DELETE CASCADE;
+
+ALTER TABLE users ADD COLUMN mqtt_username VARCHAR(255) UNIQUE;
+ALTER TABLE users ADD COLUMN mqtt_password_hash VARCHAR(255);
+
+CREATE INDEX idx_users_mqtt_username ON users(mqtt_username);

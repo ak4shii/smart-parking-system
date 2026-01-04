@@ -3,13 +3,16 @@ package com.smart_parking_system.backend.controller;
 import com.smart_parking_system.backend.dto.LoginRequestDto;
 import com.smart_parking_system.backend.dto.LoginResponseDto;
 import com.smart_parking_system.backend.dto.RegisterRequestDto;
+import com.smart_parking_system.backend.dto.RegisterResponseDto;
 import com.smart_parking_system.backend.dto.UserDto;
 import com.smart_parking_system.backend.entity.User;
 import com.smart_parking_system.backend.repository.UserRepository;
+import com.smart_parking_system.backend.service.IMqttBrokerService;
 import com.smart_parking_system.backend.util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -40,6 +43,10 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
     private final CompromisedPasswordChecker compromisedPasswordChecker;
+    private final IMqttBrokerService mqttBrokerService;
+
+    @Value("${mqtt.broker-uri}")
+    private String mqttBrokerUri;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> apiLogin(@RequestBody LoginRequestDto loginRequestDto) {
@@ -103,7 +110,31 @@ public class AuthController {
         user.setCreatedAt(Instant.now());
         userRepository.save(user);
         userRepository.flush();
-        return ResponseEntity.status(HttpStatus.CREATED).body("Register successfully");
+
+        String mqttUsername = user.getEmail();
+        String mqttPassword = registerRequestDto.getPassword();
+
+        try {
+            mqttBrokerService.createBrokerUser(mqttUsername, mqttPassword);
+
+            mqttBrokerService.setUserAcl(mqttUsername, user.getId());
+
+            user.setMqttUsername(mqttUsername);
+            user.setMqttPasswordHash(passwordEncoder.encode(mqttPassword));
+            userRepository.save(user);
+
+            RegisterResponseDto response = new RegisterResponseDto(
+                    "Register successfully",
+                    mqttUsername,
+                    mqttPassword,
+                    mqttBrokerUri);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            userRepository.delete(user);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to create MQTT broker account"));
+        }
     }
 
     private ResponseEntity<LoginResponseDto> buildErrorResponse(HttpStatus status, String message) {

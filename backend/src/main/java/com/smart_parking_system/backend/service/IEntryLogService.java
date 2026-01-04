@@ -13,4 +13,8 @@ public interface IEntryLogService {
     EntryLogDto handleEntry(String mcCode, String rfidCode, String imageBase64);
 
     EntryLogDto handleExit(String mcCode, String rfidCode);
+
+    EntryLogDto createPendingEntry(String mcCode, String rfidCode);
+
+    EntryLogDto updateEntryWithImage(String rfidCode, String imageBase64);
 }

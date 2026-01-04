@@ -28,7 +28,7 @@ public class JwtUtil {
                 .claim("email", fetchedUser.getEmail())
                 .claim("role", fetchedUser.getRole())
                 .issuedAt(new java.util.Date())
-                .expiration(new java.util.Date((new java.util.Date()).getTime() + 60 * 60 * 1000))
+                .expiration(new java.util.Date((new java.util.Date()).getTime() + 24 * 60 * 60 * 1000))
                 .signWith(secretKey).compact();
         return jwtToken;
     }

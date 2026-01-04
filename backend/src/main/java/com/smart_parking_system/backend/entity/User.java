@@ -42,6 +42,12 @@ public class User {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "mqtt_username", unique = true, length = 255)
+    private String mqttUsername;
+
+    @Column(name = "mqtt_password_hash", length = 255)
+    private String mqttPasswordHash;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

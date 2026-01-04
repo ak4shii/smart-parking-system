@@ -129,6 +129,67 @@ public class EntryLogServiceImpl implements IEntryLogService {
         return toDto(saved);
     }
 
+    @Override
+    @Transactional
+    public EntryLogDto createPendingEntry(String mcCode, String rfidCode) {
+        Microcontroller mc = microcontrollerRepository.findByMcCode(mcCode)
+                .orElseThrow(() -> new RuntimeException("Microcontroller not found: " + mcCode));
+
+        Rfid rfid = rfidRepository.findByRfidCode(rfidCode)
+                .orElseThrow(() -> new RuntimeException("RFID not found"));
+
+        if (!rfid.getPs().getId().equals(mc.getPs().getId())) {
+            throw new RuntimeException("RFID not usable in this parking space");
+        }
+
+        if (Boolean.TRUE.equals(rfid.getCurrentlyUsed())) {
+            throw new RuntimeException("This RFID is currently used");
+        }
+
+        entryLogRepository.findActiveByRfidId(rfid.getId()).ifPresent(active -> {
+            throw new RuntimeException("This RFID already has an active entry log");
+        });
+
+        EntryLog entryLog = new EntryLog();
+        entryLog.setRfid(rfid);
+        entryLog.setLicensePlate(null);
+        entryLog.setLicensePlateImageKey(null);
+        entryLog.setInTime(Instant.now());
+        entryLog.setOutTime(null);
+
+        rfid.setCurrentlyUsed(true);
+        rfidRepository.save(rfid);
+
+        EntryLog saved = entryLogRepository.save(entryLog);
+        entryLogRepository.flush();
+
+        return toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public EntryLogDto updateEntryWithImage(String rfidCode, String imageBase64) {
+        Rfid rfid = rfidRepository.findByRfidCode(rfidCode)
+                .orElseThrow(() -> new RuntimeException("RFID not found"));
+
+        EntryLog entryLog = entryLogRepository.findActiveByRfidId(rfid.getId())
+                .orElseThrow(() -> new RuntimeException("No pending entry log for this RFID"));
+
+        String licensePlate = yoloService.detectLicensePlate(imageBase64);
+
+        if (licensePlate == null || licensePlate.trim().isEmpty()) {
+            log.warn("Failed to detect license plate for RFID: {}", rfidCode);
+            licensePlate = "UNKNOWN";
+        }
+
+        entryLog.setLicensePlate(licensePlate);
+
+        EntryLog saved = entryLogRepository.save(entryLog);
+        entryLogRepository.flush();
+
+        return toDto(saved);
+    }
+
     private void requireMembership(Integer userId, Integer parkingSpaceId) {
         if (userParkingSpaceRepository.findByUserIdAndPsId(userId, parkingSpaceId).isEmpty()) {
             throw new RuntimeException("Forbidden");

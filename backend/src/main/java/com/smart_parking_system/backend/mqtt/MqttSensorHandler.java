@@ -20,8 +20,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MqttSensorHandler {
 
-    private static final int MIN_TOPIC_PARTS = 3;
-    private static final int MC_CODE_INDEX = 1;
+    private static final int MIN_TOPIC_PARTS = 5;
+    private static final int USERNAME_INDEX = 1;
+    private static final int MC_CODE_INDEX = 2;
 
     private final IMqttSensorService mqttSensorService;
     private final ObjectMapper objectMapper;
@@ -49,31 +50,32 @@ public class MqttSensorHandler {
             return;
         }
 
+        String username = topicParts[USERNAME_INDEX];
         String mcCode = topicParts[MC_CODE_INDEX];
         String payload = extractPayload(message);
 
         try {
-            handleSensorStatus(mcCode, payload);
+            handleSensorStatus(username, mcCode, payload);
         } catch (Exception ex) {
             log.error("Error processing sensor status message. Topic: {}, mcCode: {}", topic, mcCode, ex);
-            handleErrorResponse(mcCode, ex);
+            handleErrorResponse(username, mcCode, ex);
         }
     }
 
-    private void handleSensorStatus(String mcCode, String payload) throws Exception {
+    private void handleSensorStatus(String username, String mcCode, String payload) throws Exception {
         MqttSensorStatusDto status = objectMapper.readValue(payload, MqttSensorStatusDto.class);
         SensorDto sensorDto = mqttSensorService.handleSensorStatus(mcCode, status);
 
         MqttSensorResponseDto response = new MqttSensorResponseDto(true, "OK", sensorDto.getId());
-        publishResponse(baseTopic + "/" + mcCode + "/sensor/response", response);
-        log.debug("Processed sensor status update for mcCode: {}, sensorId: {}, isOccupied: {}", 
+        publishResponse(baseTopic + "/" + username + "/" + mcCode + "/sensor/response", response);
+        log.debug("Processed sensor status update for mcCode: {}, sensorId: {}, isOccupied: {}",
                 mcCode, status.getSensorId(), status.getIsOccupied());
     }
 
-    private void handleErrorResponse(String mcCode, Exception ex) {
+    private void handleErrorResponse(String username, String mcCode, Exception ex) {
         try {
             MqttSensorResponseDto errorResponse = new MqttSensorResponseDto(false, ex.getMessage(), null);
-            publishResponse(baseTopic + "/" + mcCode + "/sensor/response", errorResponse);
+            publishResponse(baseTopic + "/" + username + "/" + mcCode + "/sensor/response", errorResponse);
         } catch (Exception e) {
             log.error("Failed to send error response for mcCode: {}", mcCode, e);
         }
@@ -94,9 +96,6 @@ public class MqttSensorHandler {
         mqttOutboundChannel.send(
                 MessageBuilder.withPayload(json)
                         .setHeader(MqttHeaders.TOPIC, topic)
-                        .build()
-        );
+                        .build());
     }
 }
-
-

@@ -1,8 +1,6 @@
 package com.smart_parking_system.backend.controller;
 
 import com.smart_parking_system.backend.dto.EntryLogDto;
-import com.smart_parking_system.backend.dto.EntryResponseDto;
-import com.smart_parking_system.backend.dto.ExitResponseDto;
 import com.smart_parking_system.backend.service.IEntryLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -44,51 +43,32 @@ public class EntryLogController {
         }
     }
 
-    @PostMapping(value = "/entry", consumes = "multipart/form-data")
-    public ResponseEntity<EntryResponseDto> handleEntry(
-            @RequestParam("mcCode") String mcCode,
+    @PostMapping(value = "/upload-image", consumes = "multipart/form-data")
+    public ResponseEntity<?> uploadImage(
             @RequestParam("rfidCode") String rfidCode,
             @RequestPart("image") MultipartFile image) {
         try {
             byte[] imageBytes = image.getBytes();
             String imageBase64 = Base64.getEncoder().encodeToString(imageBytes);
 
-            EntryLogDto entryLog = entryLogService.handleEntry(mcCode, rfidCode, imageBase64);
+            EntryLogDto entryLog = entryLogService.updateEntryWithImage(rfidCode, imageBase64);
 
-            EntryResponseDto response = new EntryResponseDto(true, "Entry recorded successfully", entryLog.getId());
+            log.info("Image uploaded and processed for rfidCode: {}, entryLogId: {}, licensePlate: {}",
+                    rfidCode, entryLog.getId(), entryLog.getLicensePlate());
 
-            log.info("Entry recorded for mcCode: {}, rfidCode: {}, entryLogId: {}", mcCode, rfidCode, entryLog.getId());
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Image processed successfully",
+                    "licensePlate", entryLog.getLicensePlate(),
+                    "entryLogId", entryLog.getId()));
         } catch (RuntimeException e) {
-            log.error("Error handling entry for mcCode: {}, rfidCode: {}", mcCode, rfidCode, e);
-            EntryResponseDto errorResponse = new EntryResponseDto(false, e.getMessage(), null);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            log.error("Error uploading image for rfidCode: {}", rfidCode, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         } catch (Exception e) {
-            log.error("Unexpected error handling entry for mcCode: {}, rfidCode: {}", mcCode, rfidCode, e);
-            EntryResponseDto errorResponse = new EntryResponseDto(false, "Internal server error", null);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
-
-    @PostMapping("/exit")
-    public ResponseEntity<ExitResponseDto> handleExit(
-            @RequestParam("mcCode") String mcCode,
-            @RequestParam("rfidCode") String rfidCode) {
-        try {
-            EntryLogDto entryLog = entryLogService.handleExit(mcCode, rfidCode);
-
-            ExitResponseDto response = new ExitResponseDto(true, "Exit recorded successfully", entryLog.getId());
-
-            log.info("Exit recorded for mcCode: {}, rfidCode: {}, entryLogId: {}", mcCode, rfidCode, entryLog.getId());
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            log.error("Error handling exit for mcCode: {}, rfidCode: {}", mcCode, rfidCode, e);
-            ExitResponseDto errorResponse = new ExitResponseDto(false, e.getMessage(), null);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-        } catch (Exception e) {
-            log.error("Unexpected error handling exit for mcCode: {}, rfidCode: {}", mcCode, rfidCode, e);
-            ExitResponseDto errorResponse = new ExitResponseDto(false, "Internal server error", null);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            log.error("Unexpected error uploading image for rfidCode: {}", rfidCode, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Internal server error"));
         }
     }
 }

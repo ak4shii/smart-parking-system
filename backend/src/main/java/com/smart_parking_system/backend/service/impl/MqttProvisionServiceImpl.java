@@ -49,8 +49,8 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
     private String clientId;
 
     @Override
-    public MqttProvisionRequestDto checkForProvisionData(String mcCode, int timeoutSeconds) {
-        String topic = baseTopic + "/" + mcCode + "/provision/request";
+    public MqttProvisionRequestDto checkForProvisionData(String username, String mcCode, int timeoutSeconds) {
+        String topic = baseTopic + "/" + username + "/" + mcCode + "/provision/request";
         CompletableFuture<String> messageFuture = new CompletableFuture<>();
 
         IMqttClient client = null;
@@ -118,7 +118,7 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
 
     @Override
     @Transactional
-    public MqttProvisionResponseDto handleProvision(String mcCode, MqttProvisionRequestDto request) {
+    public MqttProvisionResponseDto handleProvision(String username, String mcCode, MqttProvisionRequestDto request) {
         Microcontroller mc = microcontrollerRepository.findByMcCode(mcCode)
                 .orElseThrow(() -> new RuntimeException("Microcontroller not found with mcCode: " + mcCode));
 
@@ -167,14 +167,14 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
                 lcdResponses,
                 sensorResponses);
 
-        publishProvisionResponse(mcCode, response);
+        publishProvisionResponse(username, mcCode, response);
 
         return response;
     }
 
-    private void publishProvisionResponse(String mcCode, MqttProvisionResponseDto response) {
+    private void publishProvisionResponse(String username, String mcCode, MqttProvisionResponseDto response) {
         try {
-            String topic = baseTopic + "/" + mcCode + "/provision/response";
+            String topic = baseTopic + "/" + username + "/" + mcCode + "/provision/response";
             String json = objectMapper.writeValueAsString(response);
 
             mqttOutboundChannel.send(

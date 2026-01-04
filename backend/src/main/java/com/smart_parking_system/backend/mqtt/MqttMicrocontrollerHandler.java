@@ -20,8 +20,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MqttMicrocontrollerHandler {
 
-    private static final int MIN_TOPIC_PARTS = 3;
-    private static final int MC_CODE_INDEX = 1;
+    private static final int MIN_TOPIC_PARTS = 4;
+    private static final int USERNAME_INDEX = 1;
+    private static final int MC_CODE_INDEX = 2;
 
     private final IMqttMicrocontrollerService mqttMicrocontrollerService;
     private final ObjectMapper objectMapper;
@@ -49,30 +50,31 @@ public class MqttMicrocontrollerHandler {
             return;
         }
 
+        String username = topicParts[USERNAME_INDEX];
         String mcCode = topicParts[MC_CODE_INDEX];
         String payload = extractPayload(message);
 
         try {
-            handleStatus(mcCode, payload);
+            handleStatus(username, mcCode, payload);
         } catch (Exception ex) {
             log.error("Error processing microcontroller status message. Topic: {}, mcCode: {}", topic, mcCode, ex);
-            handleErrorResponse(mcCode, ex);
+            handleErrorResponse(username, mcCode, ex);
         }
     }
 
-    private void handleStatus(String mcCode, String payload) throws Exception {
+    private void handleStatus(String username, String mcCode, String payload) throws Exception {
         MqttStatusRequestDto request = objectMapper.readValue(payload, MqttStatusRequestDto.class);
         MicrocontrollerDto microcontrollerDto = mqttMicrocontrollerService.handleStatus(mcCode, request);
 
         MqttStatusResponseDto response = new MqttStatusResponseDto(true, "OK", microcontrollerDto.getId());
-        publishResponse(baseTopic + "/" + mcCode + "/status/response", response);
+        publishResponse(baseTopic + "/" + username + "/" + mcCode + "/status/response", response);
         log.debug("Processed status update for mcCode: {}", mcCode);
     }
 
-    private void handleErrorResponse(String mcCode, Exception ex) {
+    private void handleErrorResponse(String username, String mcCode, Exception ex) {
         try {
             MqttStatusResponseDto errorResponse = new MqttStatusResponseDto(false, ex.getMessage(), null);
-            publishResponse(baseTopic + "/" + mcCode + "/status/response", errorResponse);
+            publishResponse(baseTopic + "/" + username + "/" + mcCode + "/status/response", errorResponse);
         } catch (Exception e) {
             log.error("Failed to send error response for mcCode: {}", mcCode, e);
         }
@@ -93,10 +95,6 @@ public class MqttMicrocontrollerHandler {
         mqttOutboundChannel.send(
                 MessageBuilder.withPayload(json)
                         .setHeader(MqttHeaders.TOPIC, topic)
-                        .build()
-        );
+                        .build());
     }
 }
-
-
-
