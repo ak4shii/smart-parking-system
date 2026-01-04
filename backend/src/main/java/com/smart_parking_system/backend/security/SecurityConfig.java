@@ -54,10 +54,12 @@ public class SecurityConfig {
                 .ignoringRequestMatchers("/api/**"))
                 .cors((corsConfig) -> corsConfig.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests((requests) -> {
-                    requests.requestMatchers("/api/auth/**").permitAll();
+                    requests.requestMatchers("/api/**").permitAll();
                     requests.requestMatchers("/csrf-token").permitAll();
                     requests.requestMatchers("/ws/**").permitAll();
-                    requests.requestMatchers("/api/entry-logs/entry", "/api/entry-logs/exit").permitAll();
+                    requests.requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll();
+                    requests.requestMatchers("/v3/api-docs/**").permitAll();
+                    requests.requestMatchers("/swagger-resources/**").permitAll();
                     requests.requestMatchers("/api/admins/**").hasRole("ADMIN");
                     requests.anyRequest().authenticated();
                 })
