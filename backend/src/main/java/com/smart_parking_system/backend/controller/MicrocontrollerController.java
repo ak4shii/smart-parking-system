@@ -8,12 +8,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/microcontrollers")
@@ -25,7 +24,8 @@ public class MicrocontrollerController {
     @PostMapping
     public ResponseEntity<?> createMicrocontroller(@Valid @RequestBody CreateMicrocontrollerRequestDto requestDto) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(microcontrollerService.createMicrocontroller(requestDto));
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(microcontrollerService.createMicrocontroller(requestDto));
         } catch (RuntimeException e) {
             Map<String, String> errorResponse = new HashMap<>();
             String errorMessage = e.getMessage() != null ? e.getMessage() : "Bad Request";
@@ -63,8 +63,7 @@ public class MicrocontrollerController {
     @PutMapping("/{id}")
     public ResponseEntity<MicrocontrollerDto> updateMicrocontroller(
             @PathVariable Integer id,
-            @Valid @RequestBody UpdateMicrocontrollerRequestDto requestDto
-    ) {
+            @Valid @RequestBody UpdateMicrocontrollerRequestDto requestDto) {
         try {
             return ResponseEntity.ok(microcontrollerService.updateMicrocontroller(id, requestDto));
         } catch (RuntimeException e) {
@@ -86,4 +85,3 @@ public class MicrocontrollerController {
         }
     }
 }
-

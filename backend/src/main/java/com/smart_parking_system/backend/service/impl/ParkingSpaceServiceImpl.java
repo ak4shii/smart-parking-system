@@ -15,7 +15,6 @@ import com.smart_parking_system.backend.service.IParkingSpaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,7 +99,7 @@ public class ParkingSpaceServiceImpl implements IParkingSpaceService {
 
         // Check if user is admin
         boolean isAdmin = isAdmin(currentUser);
-        
+
         // Admins can delete any parking space, regular users must be members
         if (!isAdmin) {
             requireMembership(currentUser.getId(), id);

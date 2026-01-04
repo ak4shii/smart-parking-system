@@ -9,4 +9,8 @@ public interface IEntryLogService {
     EntryLogDto getEntryLogById(Integer id);
 
     List<EntryLogDto> getEntryLogsByParkingSpace(Integer parkingSpaceId);
+
+    EntryLogDto handleEntry(String mcCode, String rfidCode, String imageBase64);
+
+    EntryLogDto handleExit(String mcCode, String rfidCode);
 }

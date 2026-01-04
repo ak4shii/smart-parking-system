@@ -1,6 +1,7 @@
-package com.smart_parking_system.backend.service;
+package com.smart_parking_system.backend.service.impl;
 
 import com.smart_parking_system.backend.dto.YoloResponseDto;
+import com.smart_parking_system.backend.service.IYoloService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,14 +15,12 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class YoloService {
+public class YoloServiceImpl implements IYoloService {
 
     private final RestTemplate restTemplate;
 
     @Value("${yolo.server.url:http://100.121.164.7:8000/upload}")
     private String yoloServerUrl;
-
-    YoloResponseDto responseDto;
 
     public String detectLicensePlate(String imageBase64) {
         try {

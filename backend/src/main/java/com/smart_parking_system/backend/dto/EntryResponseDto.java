@@ -1,4 +1,4 @@
-package com.smart_parking_system.backend.dto.mqtt;
+package com.smart_parking_system.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,12 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MqttEntryResponseDto {
+public class EntryResponseDto {
 
-    private boolean allowed;
+    private boolean success;
     private String message;
     private Integer entryLogId;
 }
-
-
-

@@ -29,7 +29,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -58,6 +57,7 @@ public class SecurityConfig {
                     requests.requestMatchers("/api/auth/**").permitAll();
                     requests.requestMatchers("/csrf-token").permitAll();
                     requests.requestMatchers("/ws/**").permitAll();
+                    requests.requestMatchers("/api/entry-logs/entry", "/api/entry-logs/exit").permitAll();
                     requests.requestMatchers("/api/admins/**").hasRole("ADMIN");
                     requests.anyRequest().authenticated();
                 })
@@ -81,7 +81,8 @@ public class SecurityConfig {
     @Order(SecurityProperties.BASIC_AUTH_ORDER)
     @ConditionalOnProperty(name = "security.enabled", havingValue = "false")
     public SecurityFilterChain disabledSecurityFilterChain(HttpSecurity http) throws Exception {
-        log.warn("⚠️ WARNING: Security is DISABLED! All endpoints are publicly accessible. This should NEVER be used in production!");
+        log.warn(
+                "⚠️ WARNING: Security is DISABLED! All endpoints are publicly accessible. This should NEVER be used in production!");
         return http.csrf((csrfConfig) -> csrfConfig.disable())
                 .cors((corsConfig) -> corsConfig.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests((requests) -> requests.anyRequest().permitAll())
