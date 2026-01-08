@@ -20,10 +20,10 @@ public class Microcontroller {
     private Integer id;
 
     @NotNull
-    @Column(name = "mc_code", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "mc_code", nullable = false, unique = true)
     private String mcCode;
 
-    @Column(name = "name", length = Integer.MAX_VALUE)
+    @Column(name = "name")
     private String name;
 
     @ColumnDefault("false")
@@ -40,4 +40,28 @@ public class Microcontroller {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ps_id", nullable = false)
     private ParkingSpace ps;
+
+    // MQTT Security Fields
+    @Column(name = "mqtt_username", unique = true)
+    private String mqttUsername;
+
+    @Column(name = "mqtt_password_hash")
+    private String mqttPasswordHash;
+
+    @ColumnDefault("true")
+    @Column(name = "mqtt_enabled")
+    private Boolean mqttEnabled;
+
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (mqttEnabled == null) {
+            mqttEnabled = true;
+        }
+    }
 }

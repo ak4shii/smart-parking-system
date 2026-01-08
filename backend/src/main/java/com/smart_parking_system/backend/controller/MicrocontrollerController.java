@@ -2,6 +2,7 @@ package com.smart_parking_system.backend.controller;
 
 import com.smart_parking_system.backend.dto.CreateMicrocontrollerRequestDto;
 import com.smart_parking_system.backend.dto.MicrocontrollerDto;
+import com.smart_parking_system.backend.dto.MqttCredentialsResponseDto;
 import com.smart_parking_system.backend.dto.UpdateMicrocontrollerRequestDto;
 import com.smart_parking_system.backend.service.IMicrocontrollerService;
 import jakarta.validation.Valid;
@@ -21,11 +22,16 @@ public class MicrocontrollerController {
 
     private final IMicrocontrollerService microcontrollerService;
 
+    /**
+     * Create a new microcontroller and generate MQTT credentials.
+     * The MQTT credentials (including password) are returned ONLY in this response.
+     * Store them securely - the password cannot be retrieved again.
+     */
     @PostMapping
     public ResponseEntity<?> createMicrocontroller(@Valid @RequestBody CreateMicrocontrollerRequestDto requestDto) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(microcontrollerService.createMicrocontroller(requestDto));
+            MicrocontrollerDto result = microcontrollerService.createMicrocontroller(requestDto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(result);
         } catch (RuntimeException e) {
             Map<String, String> errorResponse = new HashMap<>();
             String errorMessage = e.getMessage() != null ? e.getMessage() : "Bad Request";
@@ -82,6 +88,54 @@ public class MicrocontrollerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // ==================== MQTT Credential Management ====================
+
+    /**
+     * Regenerate MQTT credentials for a device.
+     * Use this when credentials are compromised or need rotation.
+     * Old credentials are immediately revoked.
+     * 
+     * @param id The microcontroller ID
+     * @return New MQTT credentials (password shown once)
+     */
+    @PostMapping("/{id}/mqtt/regenerate")
+    public ResponseEntity<?> regenerateMqttCredentials(@PathVariable Integer id) {
+        try {
+            MqttCredentialsResponseDto credentials = microcontrollerService.regenerateMqttCredentials(id);
+            return ResponseEntity.ok(credentials);
+        } catch (RuntimeException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage() != null ? e.getMessage() : "Bad Request");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Revoke MQTT access for a device without deleting it.
+     * The device will no longer be able to connect to MQTT broker.
+     * 
+     * @param id The microcontroller ID
+     */
+    @PostMapping("/{id}/mqtt/revoke")
+    public ResponseEntity<?> revokeMqttCredentials(@PathVariable Integer id) {
+        try {
+            microcontrollerService.revokeMqttCredentials(id);
+            return ResponseEntity.ok(Map.of("message", "MQTT credentials revoked successfully"));
+        } catch (RuntimeException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage() != null ? e.getMessage() : "Bad Request");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 }

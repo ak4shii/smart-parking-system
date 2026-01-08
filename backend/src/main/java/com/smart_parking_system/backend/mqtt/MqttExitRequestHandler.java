@@ -14,10 +14,18 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
+/**
+ * Handles MQTT exit gate requests.
+ * 
+ * Topic: sps/{mqttUsername}/exit/request
+ * Where mqttUsername = {ownerUsername}_{mcCode}
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MqttExitRequestHandler {
+
+    private static final int MIN_TOPIC_PARTS = 3;
 
     private final IEntryLogService entryLogService;
     private final MessageChannel mqttOutboundChannel;
@@ -32,39 +40,44 @@ public class MqttExitRequestHandler {
             String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
             String payload = new String((byte[]) message.getPayload());
 
+            // Only handle exit requests
+            if (!MqttTopicUtils.topicEndsWith(topic, "/exit/request")) {
+                return;
+            }
+
             log.info("Received exit request from topic: {}", topic);
 
-            String[] parts = topic.split("/");
-            if (parts.length < 4) {
+            if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
                 log.error("Invalid topic format: {}", topic);
                 return;
             }
 
-            if (!topic.endsWith("/exit/request")) {
+            String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
+            String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+
+            if (mcCode == null) {
+                log.error("Could not extract mcCode from mqttUsername: {}", mqttUsername);
                 return;
             }
-
-            String username = parts[1];
-            String mcCode = parts[2];
 
             MqttExitRequestDto request = objectMapper.readValue(payload, MqttExitRequestDto.class);
 
             entryLogService.handleExit(mcCode, request.getRfidCode());
 
-            publishDoorCommand(username, mcCode, "exit", "open");
+            publishDoorCommand(mqttUsername, "exit", "open");
 
-            log.info("Exit request processed for mcCode: {}, rfidCode: {}", mcCode, request.getRfidCode());
+            log.info("Exit request processed for mqttUsername: {}, rfidCode: {}", mqttUsername, request.getRfidCode());
 
         } catch (Exception e) {
             log.error("Error handling exit request", e);
         }
     }
 
-    private void publishDoorCommand(String username, String mcCode, String commandType, String command) {
+    private void publishDoorCommand(String mqttUsername, String commandType, String command) {
         try {
             MqttDoorControlDto doorCommand = new MqttDoorControlDto(commandType, command);
             String payload = objectMapper.writeValueAsString(doorCommand);
-            String topic = baseTopic + "/" + username + "/" + mcCode + "/command";
+            String topic = MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "command");
 
             mqttOutboundChannel.send(
                     MessageBuilder.withPayload(payload)

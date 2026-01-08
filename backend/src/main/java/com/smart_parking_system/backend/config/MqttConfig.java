@@ -15,6 +15,21 @@ import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
+/**
+ * MQTT Configuration for Smart Parking System.
+ * 
+ * Topic Structure (secured with per-device ACL):
+ * - sps/{mqttUsername}/entry/request    - Entry gate requests
+ * - sps/{mqttUsername}/exit/request     - Exit gate requests
+ * - sps/{mqttUsername}/status           - Device status updates
+ * - sps/{mqttUsername}/sensor/status    - Sensor data
+ * - sps/{mqttUsername}/provision/request - Device provisioning
+ * - sps/{mqttUsername}/command          - Commands to device
+ * - sps/{mqttUsername}/camera           - Camera triggers
+ * 
+ * Where mqttUsername = {ownerUsername}_{mcCode}
+ * Example: sps/john_mc12345678/sensor/status
+ */
 @Configuration
 public class MqttConfig {
 
@@ -41,6 +56,9 @@ public class MqttConfig {
         options.setUserName(username);
         options.setPassword(password.toCharArray());
         options.setAutomaticReconnect(true);
+        options.setCleanSession(true);
+        options.setConnectionTimeout(30);
+        options.setKeepAliveInterval(60);
         factory.setConnectionOptions(options);
         return factory;
     }
@@ -75,11 +93,16 @@ public class MqttConfig {
         return new DirectChannel();
     }
 
+    /**
+     * Subscribe to entry/exit gate requests.
+     * Topic pattern: sps/+/entry/request, sps/+/exit/request
+     * Where + matches {username}_{mcCode}
+     */
     @Bean
     public MessageProducer inbound() {
         String[] topics = {
-                baseTopic + "/+/+/entry/request",
-                baseTopic + "/+/+/exit/request"
+                baseTopic + "/+/entry/request",
+                baseTopic + "/+/exit/request"
         };
 
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
@@ -93,12 +116,16 @@ public class MqttConfig {
         return adapter;
     }
 
+    /**
+     * Subscribe to device status updates.
+     * Topic pattern: sps/+/status
+     */
     @Bean
     public MessageProducer statusInbound() {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-status-inbound",
                 mqttClientFactory(),
-                baseTopic + "/+/+/status");
+                baseTopic + "/+/status");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
@@ -106,12 +133,16 @@ public class MqttConfig {
         return adapter;
     }
 
+    /**
+     * Subscribe to sensor status updates.
+     * Topic pattern: sps/+/sensor/status
+     */
     @Bean
     public MessageProducer sensorInbound() {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-sensor-inbound",
                 mqttClientFactory(),
-                baseTopic + "/+/+/sensor/status");
+                baseTopic + "/+/sensor/status");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
@@ -119,12 +150,16 @@ public class MqttConfig {
         return adapter;
     }
 
+    /**
+     * Subscribe to device provisioning requests.
+     * Topic pattern: sps/+/provision/request
+     */
     @Bean
     public MessageProducer provisionInbound() {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-provision-inbound",
                 mqttClientFactory(),
-                baseTopic + "/+/+/provision/request");
+                baseTopic + "/+/provision/request");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);

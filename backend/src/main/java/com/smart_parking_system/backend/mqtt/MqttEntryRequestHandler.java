@@ -15,10 +15,18 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
+/**
+ * Handles MQTT entry gate requests.
+ * 
+ * Topic: sps/{mqttUsername}/entry/request
+ * Where mqttUsername = {ownerUsername}_{mcCode}
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MqttEntryRequestHandler {
+
+    private static final int MIN_TOPIC_PARTS = 3;
 
     private final IEntryLogService entryLogService;
     private final MessageChannel mqttOutboundChannel;
@@ -35,35 +43,44 @@ public class MqttEntryRequestHandler {
 
             log.info("Received entry request from topic: {}", topic);
 
-            String[] parts = topic.split("/");
-            if (parts.length < 4) {
+            // Skip if not an entry request (exit requests also come to this channel)
+            if (!MqttTopicUtils.topicEndsWith(topic, "/entry/request")) {
+                return;
+            }
+
+            if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
                 log.error("Invalid topic format: {}", topic);
                 return;
             }
 
-            String username = parts[1];
-            String mcCode = parts[2];
+            String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
+            String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+
+            if (mcCode == null) {
+                log.error("Could not extract mcCode from mqttUsername: {}", mqttUsername);
+                return;
+            }
 
             MqttEntryRequestDto request = objectMapper.readValue(payload, MqttEntryRequestDto.class);
 
             entryLogService.createPendingEntry(mcCode, request.getRfidCode());
 
-            publishCameraCommand(username, mcCode, request.getRfidCode());
+            publishCameraCommand(mqttUsername, request.getRfidCode());
 
-            publishDoorCommand(username, mcCode, "entry", "open");
+            publishDoorCommand(mqttUsername, "entry", "open");
 
-            log.info("Entry request processed for mcCode: {}, rfidCode: {}", mcCode, request.getRfidCode());
+            log.info("Entry request processed for mqttUsername: {}, rfidCode: {}", mqttUsername, request.getRfidCode());
 
         } catch (Exception e) {
             log.error("Error handling entry request", e);
         }
     }
 
-    private void publishCameraCommand(String username, String mcCode, String rfidCode) {
+    private void publishCameraCommand(String mqttUsername, String rfidCode) {
         try {
             MqttCameraCommandDto command = new MqttCameraCommandDto("camera", "snap", rfidCode);
             String payload = objectMapper.writeValueAsString(command);
-            String topic = baseTopic + "/" + username + "/" + mcCode + "/camera";
+            String topic = MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "camera");
 
             mqttOutboundChannel.send(
                     MessageBuilder.withPayload(payload)
@@ -76,11 +93,11 @@ public class MqttEntryRequestHandler {
         }
     }
 
-    private void publishDoorCommand(String username, String mcCode, String commandType, String command) {
+    private void publishDoorCommand(String mqttUsername, String commandType, String command) {
         try {
             MqttDoorControlDto doorCommand = new MqttDoorControlDto(commandType, command);
             String payload = objectMapper.writeValueAsString(doorCommand);
-            String topic = baseTopic + "/" + username + "/" + mcCode + "/command";
+            String topic = MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "command");
 
             mqttOutboundChannel.send(
                     MessageBuilder.withPayload(payload)

@@ -11,10 +11,18 @@ import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
+/**
+ * Handles MQTT device provisioning requests.
+ * 
+ * Topic: sps/{mqttUsername}/provision/request
+ * Where mqttUsername = {ownerUsername}_{mcCode}
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MqttProvisionHandler {
+
+    private static final int MIN_TOPIC_PARTS = 3;
 
     private final IMqttProvisionService mqttProvisionService;
     private final ObjectMapper objectMapper;
@@ -30,18 +38,23 @@ public class MqttProvisionHandler {
 
             log.info("Received provision request from topic: {}", topic);
 
-            String[] parts = topic.split("/");
-            if (parts.length < 5) {
+            if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
                 log.error("Invalid provision topic format: {}", topic);
                 return;
             }
 
-            String username = parts[1];
-            String mcCode = parts[2];
+            String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
+            String ownerUsername = MqttTopicUtils.extractOwnerUsername(mqttUsername);
+            String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+
+            if (mcCode == null || ownerUsername == null) {
+                log.error("Could not parse mqttUsername: {}", mqttUsername);
+                return;
+            }
 
             MqttProvisionRequestDto request = objectMapper.readValue(payload, MqttProvisionRequestDto.class);
 
-            mqttProvisionService.handleProvision(username, mcCode, request);
+            mqttProvisionService.handleProvision(ownerUsername, mcCode, request);
 
             log.info("Provisioning completed for mcCode: {}", mcCode);
 

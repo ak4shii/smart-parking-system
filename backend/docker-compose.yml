@@ -31,8 +31,19 @@ services:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
+      - mosquitto_passwords:/mosquitto/config/passwords_vol
     networks:
       - sps-network
+    # Initialize password file on first run
+    command: >
+      sh -c "
+        if [ ! -f /mosquitto/config/passwords ]; then
+          touch /mosquitto/config/passwords;
+          mosquitto_passwd -b /mosquitto/config/passwords sps-backend $${MQTT_BACKEND_PASSWORD:-changeme_in_production};
+          chown mosquitto:mosquitto /mosquitto/config/passwords;
+        fi &&
+        /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+      "
 
   backend:
     build:
@@ -48,7 +59,15 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin
       # MQTT configuration
-      MQTT_BROKER_URL: tcp://mosquitto:1883
+      MQTT_BROKER_URI: tcp://mosquitto:1883
+      MQTT_USERNAME: sps-backend
+      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-changeme_in_production}
+      MQTT_BROKER_HOST: ${MQTT_PUBLIC_HOST:-localhost}
+      MQTT_BROKER_PORT: ${MQTT_PUBLIC_PORT:-1883}
+      MQTT_PASSWORD_FILE: /mosquitto/config/passwords
+    volumes:
+      # Share mosquitto config for password file management
+      - ./mosquitto/config:/mosquitto/config
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,8 +92,9 @@ services:
 volumes:
   sps_postgres_data:
     driver: local
+  mosquitto_passwords:
+    driver: local
 
 networks:
   sps-network:
     driver: bridge
-

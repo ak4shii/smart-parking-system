@@ -8,11 +8,8 @@ import java.util.Optional;
 public interface MicrocontrollerRepository extends JpaRepository<Microcontroller, Integer> {
     
     Optional<Microcontroller> findByMcCode(String mcCode);
+    
+    Optional<Microcontroller> findByMqttUsername(String mqttUsername);
+    
+    boolean existsByMqttUsername(String mqttUsername);
 }
-
-
-
-
-
-
-

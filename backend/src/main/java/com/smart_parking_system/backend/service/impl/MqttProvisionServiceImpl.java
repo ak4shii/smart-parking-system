@@ -28,6 +28,15 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Handles device provisioning via MQTT.
+ * 
+ * Topic Structure:
+ * - Request: sps/{mqttUsername}/provision/request
+ * - Response: sps/{mqttUsername}/provision/response
+ * 
+ * Where mqttUsername = {ownerUsername}_{mcCode}
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -42,15 +51,16 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
     private final ObjectMapper objectMapper;
     private final MessageChannel mqttOutboundChannel;
 
-    @Value("${MQTT_CLIENT_ID:sps-backend}")
-    private String baseTopic;
-
-    @Value("${MQTT_BASE_TOPIC:sps}")
+    @Value("${mqtt.client-id:sps-backend}")
     private String clientId;
+
+    @Value("${mqtt.base-topic:sps}")
+    private String baseTopic;
 
     @Override
     public MqttProvisionRequestDto checkForProvisionData(String username, String mcCode, int timeoutSeconds) {
-        String topic = baseTopic + "/" + username + "/" + mcCode + "/provision/request";
+        String mqttUsername = username + "_" + mcCode;
+        String topic = baseTopic + "/" + mqttUsername + "/provision/request";
         CompletableFuture<String> messageFuture = new CompletableFuture<>();
 
         IMqttClient client = null;
@@ -174,7 +184,8 @@ public class MqttProvisionServiceImpl implements IMqttProvisionService {
 
     private void publishProvisionResponse(String username, String mcCode, MqttProvisionResponseDto response) {
         try {
-            String topic = baseTopic + "/" + username + "/" + mcCode + "/provision/response";
+            String mqttUsername = username + "_" + mcCode;
+            String topic = baseTopic + "/" + mqttUsername + "/provision/response";
             String json = objectMapper.writeValueAsString(response);
 
             mqttOutboundChannel.send(

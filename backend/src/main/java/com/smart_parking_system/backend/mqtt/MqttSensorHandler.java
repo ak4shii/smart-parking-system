@@ -15,14 +15,18 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
+/**
+ * Handles MQTT sensor status updates.
+ * 
+ * Topic: sps/{mqttUsername}/sensor/status
+ * Where mqttUsername = {ownerUsername}_{mcCode}
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MqttSensorHandler {
 
-    private static final int MIN_TOPIC_PARTS = 5;
-    private static final int USERNAME_INDEX = 1;
-    private static final int MC_CODE_INDEX = 2;
+    private static final int MIN_TOPIC_PARTS = 4;
 
     private final IMqttSensorService mqttSensorService;
     private final ObjectMapper objectMapper;
@@ -44,40 +48,45 @@ public class MqttSensorHandler {
             return;
         }
 
-        String[] topicParts = topic.split("/");
-        if (topicParts.length < MIN_TOPIC_PARTS) {
+        if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
             log.debug("Topic has insufficient parts, ignoring: {}", topic);
             return;
         }
 
-        String username = topicParts[USERNAME_INDEX];
-        String mcCode = topicParts[MC_CODE_INDEX];
+        String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
+        String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+
+        if (mcCode == null) {
+            log.error("Could not extract mcCode from mqttUsername: {}", mqttUsername);
+            return;
+        }
+
         String payload = extractPayload(message);
 
         try {
-            handleSensorStatus(username, mcCode, payload);
+            handleSensorStatus(mqttUsername, mcCode, payload);
         } catch (Exception ex) {
             log.error("Error processing sensor status message. Topic: {}, mcCode: {}", topic, mcCode, ex);
-            handleErrorResponse(username, mcCode, ex);
+            handleErrorResponse(mqttUsername, ex);
         }
     }
 
-    private void handleSensorStatus(String username, String mcCode, String payload) throws Exception {
+    private void handleSensorStatus(String mqttUsername, String mcCode, String payload) throws Exception {
         MqttSensorStatusDto status = objectMapper.readValue(payload, MqttSensorStatusDto.class);
         SensorDto sensorDto = mqttSensorService.handleSensorStatus(mcCode, status);
 
         MqttSensorResponseDto response = new MqttSensorResponseDto(true, "OK", sensorDto.getId());
-        publishResponse(baseTopic + "/" + username + "/" + mcCode + "/sensor/response", response);
+        publishResponse(MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "sensor/response"), response);
         log.debug("Processed sensor status update for mcCode: {}, sensorId: {}, isOccupied: {}",
                 mcCode, status.getSensorId(), status.getIsOccupied());
     }
 
-    private void handleErrorResponse(String username, String mcCode, Exception ex) {
+    private void handleErrorResponse(String mqttUsername, Exception ex) {
         try {
             MqttSensorResponseDto errorResponse = new MqttSensorResponseDto(false, ex.getMessage(), null);
-            publishResponse(baseTopic + "/" + username + "/" + mcCode + "/sensor/response", errorResponse);
+            publishResponse(MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "sensor/response"), errorResponse);
         } catch (Exception e) {
-            log.error("Failed to send error response for mcCode: {}", mcCode, e);
+            log.error("Failed to send error response for mqttUsername: {}", mqttUsername, e);
         }
     }
 

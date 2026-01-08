@@ -30,7 +30,11 @@ CREATE TABLE "microcontroller" (
                                    "online" boolean DEFAULT false,
                                    "uptime_sec" bigint,
                                    "last_seen" timestamp,
-                                   "ps_id" int NOT NULL
+                                   "ps_id" int NOT NULL,
+                                   "mqtt_username" varchar UNIQUE,
+                                   "mqtt_password_hash" varchar,
+                                   "mqtt_enabled" boolean DEFAULT true,
+                                   "created_at" timestamp DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE "door" (
