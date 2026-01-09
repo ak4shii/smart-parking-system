@@ -53,6 +53,14 @@ services:
 
       # MQTT configuration
       MQTT_BROKER_URL: tcp://mosquitto:1883
+      MQTT_USERNAME: sps-backend
+      MQTT_BACKEND_PASSWORD: ${MQTT_BACKEND_PASSWORD:-sps_backend_secret}
+      MQTT_PASSWORD_FILE_PATH: /mosquitto/config/passwords
+      MQTT_PUBLIC_HOST: ${MQTT_PUBLIC_HOST:-localhost}
+      MQTT_PUBLIC_PORT: ${MQTT_PUBLIC_PORT:-1883}
+
+      # Security configuration  
+      SECURITY_ENABLED: "true"
 
       # --- S3 (presigned GET URLs) ---
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
@@ -63,6 +71,8 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    volumes:
+      - ./backend/mosquitto/config:/mosquitto/config
     depends_on:
       postgres:
         condition: service_healthy

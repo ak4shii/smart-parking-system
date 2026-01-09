@@ -7,12 +7,10 @@ import com.smart_parking_system.backend.dto.RegisterResponseDto;
 import com.smart_parking_system.backend.dto.UserDto;
 import com.smart_parking_system.backend.entity.User;
 import com.smart_parking_system.backend.repository.UserRepository;
-import com.smart_parking_system.backend.service.IMqttBrokerService;
 import com.smart_parking_system.backend.util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -43,10 +41,6 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
     private final CompromisedPasswordChecker compromisedPasswordChecker;
-    private final IMqttBrokerService mqttBrokerService;
-
-    @Value("${mqtt.broker-uri}")
-    private String mqttBrokerUri;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> apiLogin(@RequestBody LoginRequestDto loginRequestDto) {
@@ -111,30 +105,17 @@ public class AuthController {
         userRepository.save(user);
         userRepository.flush();
 
-        String mqttUsername = user.getEmail();
-        String mqttPassword = registerRequestDto.getPassword();
+        // Note: Web users don't get MQTT credentials directly.
+        // MQTT credentials are generated per-device when microcontrollers are registered.
+        // This provides better security isolation between devices.
+        
+        RegisterResponseDto response = new RegisterResponseDto(
+                "Register successfully",
+                null,  // mqttUsername - devices get their own credentials
+                null,  // mqttPassword - devices get their own credentials
+                null); // mqttBrokerUri - provided when device is registered
 
-        try {
-            mqttBrokerService.createBrokerUser(mqttUsername, mqttPassword);
-
-            mqttBrokerService.setUserAcl(mqttUsername, user.getId());
-
-            user.setMqttUsername(mqttUsername);
-            user.setMqttPasswordHash(passwordEncoder.encode(mqttPassword));
-            userRepository.save(user);
-
-            RegisterResponseDto response = new RegisterResponseDto(
-                    "Register successfully",
-                    mqttUsername,
-                    mqttPassword,
-                    mqttBrokerUri);
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (Exception e) {
-            userRepository.delete(user);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to create MQTT broker account"));
-        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     private ResponseEntity<LoginResponseDto> buildErrorResponse(HttpStatus status, String message) {

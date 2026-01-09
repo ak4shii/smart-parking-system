@@ -26,6 +26,9 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
+# Install mosquitto for mosquitto_passwd tool (MQTT credential management)
+RUN apk add --no-cache mosquitto
+
 # Copy the jar from build stage
 COPY --from=build /app/target/*.jar app.jar
 
