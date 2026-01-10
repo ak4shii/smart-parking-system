@@ -25,7 +25,11 @@ import parkingSpaceService, {
   type ParkingSpaceDto,
   type UpdateParkingSpaceRequest,
 } from '../services/parkingSpaceService';
-import microcontrollerService, { type CreateMicrocontrollerRequest } from '../services/microcontrollerService';
+import microcontrollerService, {
+  type CreateMicrocontrollerRequest,
+  type MqttCredentials,
+} from '../services/microcontrollerService';
+import MqttCredentialsDialog from '../components/MqttCredentialsDialog';
 
 type WizardStep = 1 | 2 | 3;
 
@@ -59,8 +63,10 @@ export default function AdminPage() {
     mcCode: '',
     name: '',
   });
-  
-  
+
+  // MQTT Credentials dialog state
+  const [mqttCredentials, setMqttCredentials] = useState<MqttCredentials | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
 
   // Validation errors state
   const [validationErrors, setValidationErrors] = useState<{
@@ -151,7 +157,7 @@ export default function AdminPage() {
     return Object.keys(errors).length === 0;
   };
 
-  
+
 
   const handleNextStep = () => {
     let isValid = false;
@@ -163,7 +169,7 @@ export default function AdminPage() {
       case 2:
         isValid = validateStep2();
         break;
-      
+
       default:
         isValid = true;
     }
@@ -194,19 +200,26 @@ export default function AdminPage() {
       const parkingSpace = await parkingSpaceService.createParkingSpace(parkingSpaceData);
       toast.success(`Parking space "${parkingSpace.name}" created!`);
 
-      // Step 2: Create Microcontroller
+      // Step 2: Create Microcontroller and capture MQTT credentials
       const mcRequest: CreateMicrocontrollerRequest = {
         ...microcontrollerData,
         parkingSpaceId: parkingSpace.id,
       };
-      await microcontrollerService.createMicrocontroller(mcRequest);
+      const mcResponse = await microcontrollerService.createMicrocontroller(mcRequest);
+
+      // Check if MQTT credentials are included in response
+      if (mcResponse.mqttCredentials) {
+        setMqttCredentials(mcResponse.mqttCredentials);
+        setShowCredentialsDialog(true);
+      }
+
       toast.success('Parking space created successfully! (Provision will create slots/sensors/RFID later)');
       setShowCreateWizard(false);
       resetWizard();
       fetchParkingSpaces();
     } catch (error: any) {
       console.error('Error creating parking space:', error);
-      
+
       // Provide specific error messages
       if (error.response?.data?.error) {
         toast.error(error.response.data.error);
@@ -267,7 +280,7 @@ export default function AdminPage() {
       await fetchParkingSpaces();
     } catch (error: any) {
       console.error('Error deleting parking space:', error);
-      
+
       // Provide more specific error messages
       if (error.response?.status === 403) {
         toast.error('You do not have permission to delete this parking space');
@@ -305,11 +318,10 @@ export default function AdminPage() {
                   }
                 }}
                 placeholder="e.g., Downtown Parking"
-                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                  validationErrors.name
-                    ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
-                    : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
-                }`}
+                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${validationErrors.name
+                  ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
+                  : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
+                  }`}
               />
               {validationErrors.name && (
                 <p className="mt-1 text-xs text-rose-600">{validationErrors.name}</p>
@@ -328,11 +340,10 @@ export default function AdminPage() {
                   }
                 }}
                 placeholder="e.g., 123 Main Street, Hanoi"
-                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                  validationErrors.location
-                    ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
-                    : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
-                }`}
+                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${validationErrors.location
+                  ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
+                  : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
+                  }`}
               />
               {validationErrors.location && (
                 <p className="mt-1 text-xs text-rose-600">{validationErrors.location}</p>
@@ -358,11 +369,10 @@ export default function AdminPage() {
                   }
                 }}
                 placeholder="e.g., MC-001"
-                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                  validationErrors.mcCode
-                    ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
-                    : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
-                }`}
+                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${validationErrors.mcCode
+                  ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
+                  : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
+                  }`}
               />
               {validationErrors.mcCode && (
                 <p className="mt-1 text-xs text-rose-600">{validationErrors.mcCode}</p>
@@ -381,11 +391,10 @@ export default function AdminPage() {
                   }
                 }}
                 placeholder="e.g., Main Controller"
-                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${
-                  validationErrors.mcName
-                    ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
-                    : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
-                }`}
+                className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 ${validationErrors.mcName
+                  ? 'border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100'
+                  : 'border-slate-200 bg-slate-50 focus:border-indigo-300 focus:ring-indigo-100'
+                  }`}
               />
               {validationErrors.mcName && (
                 <p className="mt-1 text-xs text-rose-600">{validationErrors.mcName}</p>
@@ -394,7 +403,7 @@ export default function AdminPage() {
           </div>
         );
 
-      
+
 
       case 3:
         return (
@@ -678,19 +687,17 @@ export default function AdminPage() {
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="flex items-center">
                     <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
-                        wizardStep >= step
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-slate-200 text-slate-600'
-                      }`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${wizardStep >= step
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-200 text-slate-600'
+                        }`}
                     >
                       {wizardStep > step ? <Check className="h-4 w-4" /> : step}
                     </div>
                     {step < 4 && (
                       <div
-                        className={`h-1 w-16 ${
-                          wizardStep > step ? 'bg-indigo-600' : 'bg-slate-200'
-                        }`}
+                        className={`h-1 w-16 ${wizardStep > step ? 'bg-indigo-600' : 'bg-slate-200'
+                          }`}
                       />
                     )}
                   </div>
@@ -810,6 +817,17 @@ export default function AdminPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* MQTT Credentials Dialog */}
+      {showCredentialsDialog && mqttCredentials && (
+        <MqttCredentialsDialog
+          credentials={mqttCredentials}
+          onClose={() => {
+            setShowCredentialsDialog(false);
+            setMqttCredentials(null);
+          }}
+        />
       )}
     </div>
   );

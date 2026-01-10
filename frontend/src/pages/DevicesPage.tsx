@@ -22,7 +22,11 @@ import { useAuth } from '../context/AuthContext';
 import sensorService, { type SensorDto } from '../services/sensorService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
 import slotService, { type SlotDto } from '../services/slotService';
-import microcontrollerService, { type MicrocontrollerDto } from '../services/microcontrollerService';
+import microcontrollerService, {
+  type MicrocontrollerDto,
+  type MqttCredentials,
+} from '../services/microcontrollerService';
+import MqttCredentialsDialog from '../components/MqttCredentialsDialog';
 
 export default function DevicesPage() {
   const { user, logout } = useAuth();
@@ -34,6 +38,10 @@ export default function DevicesPage() {
   const [selectedParkingSpaceId, setSelectedParkingSpaceId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // MQTT Credentials dialog state
+  const [mqttCredentials, setMqttCredentials] = useState<MqttCredentials | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -62,6 +70,46 @@ export default function DevicesPage() {
       toast.error('Failed to load sensors');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRegenerateCredentials = async (microcontroller: MicrocontrollerDto) => {
+    if (!confirm(
+      `Regenerate MQTT credentials for "${microcontroller.name}"?\n\n` +
+      `⚠️ WARNING: Old credentials will be immediately revoked!\n` +
+      `The device will disconnect until you update it with new credentials.`
+    )) {
+      return;
+    }
+
+    try {
+      const newCredentials = await microcontrollerService.regenerateMqttCredentials(microcontroller.id);
+      setMqttCredentials(newCredentials);
+      setShowCredentialsDialog(true);
+      toast.success(`Credentials regenerated for ${microcontroller.name}`);
+      await fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error regenerating credentials:', error);
+      toast.error(error.response?.data?.error || 'Failed to regenerate credentials');
+    }
+  };
+
+  const handleRevokeCredentials = async (microcontroller: MicrocontrollerDto) => {
+    if (!confirm(
+      `Revoke MQTT access for "${microcontroller.name}"?\n\n` +
+      `⚠️ WARNING: The device will immediately lose MQTT access!\n` +
+      `You can regenerate credentials later if needed.`
+    )) {
+      return;
+    }
+
+    try {
+      await microcontrollerService.revokeMqttCredentials(microcontroller.id);
+      toast.success(`MQTT access revoked for ${microcontroller.name}`);
+      await fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error revoking credentials:', error);
+      toast.error(error.response?.data?.error || 'Failed to revoke credentials');
     }
   };
 
@@ -366,8 +414,8 @@ export default function DevicesPage() {
                           <td className="py-4">
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${sensor.type === 'ultrasonic'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-purple-100 text-purple-700'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-purple-100 text-purple-700'
                                 }`}
                             >
                               {sensor.type}
@@ -398,8 +446,116 @@ export default function DevicesPage() {
               </div>
             )}
           </div>
+
+          {/* Microcontrollers Section */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900 mb-5">Microcontrollers & MQTT Management</h2>
+
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-slate-500">Loading microcontrollers...</div>
+              </div>
+            ) : microcontrollers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Radio className="h-12 w-12 text-slate-300" />
+                <div className="mt-3 text-slate-900 font-semibold">No Microcontrollers</div>
+                <div className="mt-1 text-sm text-slate-500">Create a parking space to add microcontrollers</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">ID</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Name</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Code</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Status</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">MQTT Status</th>
+                      <th className="pb-3 text-right text-xs font-semibold text-slate-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {microcontrollers.map((mc) => (
+                      <tr key={mc.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-4 text-sm text-slate-600">#{mc.id}</td>
+                        <td className="py-4">
+                          <div className="flex items-center gap-2">
+                            <Radio className="h-4 w-4 text-indigo-600" />
+                            <span className="text-sm font-semibold text-slate-900">{mc.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-4">
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-mono text-slate-700">
+                            {mc.mcCode}
+                          </span>
+                        </td>
+                        <td className="py-4">
+                          {mc.online ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              <Wifi className="h-3 w-3" />
+                              Online
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                              <WifiOff className="h-3 w-3" />
+                              Offline
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4">
+                          {mc.mqttEnabled ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+                              <ShieldCheck className="h-3 w-3" />
+                              Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                              ⚠️ Revoked
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleRegenerateCredentials(mc)}
+                              disabled={!mc.mqttEnabled}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={mc.mqttEnabled ? "Regenerate MQTT credentials" : "MQTT access revoked - cannot regenerate"}
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                              Regenerate
+                            </button>
+                            <button
+                              onClick={() => handleRevokeCredentials(mc)}
+                              disabled={!mc.mqttEnabled}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={mc.mqttEnabled ? "Revoke MQTT access" : "Already revoked"}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Revoke
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </main>
       </div>
+
+      {/* MQTT Credentials Dialog */}
+      {showCredentialsDialog && mqttCredentials && (
+        <MqttCredentialsDialog
+          credentials={mqttCredentials}
+          onClose={() => {
+            setShowCredentialsDialog(false);
+            setMqttCredentials(null);
+          }}
+        />
+      )}
     </div>
   );
 }
