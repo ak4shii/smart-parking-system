@@ -14,7 +14,7 @@ import json
 import time
 import random
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 
 # ANSI Colors for beautiful output
@@ -106,8 +106,15 @@ class ESP32Device:
             client.subscribe(cmd_topic)
             print_info(f"Subscribed to: {cmd_topic}")
             
+            # Subscribe to provision response
+            provision_response_topic = f"{self.base_topic}/provision/response"
+            client.subscribe(provision_response_topic)
+            
             # Publish birth message
             self._publish_birth_message()
+            
+            # Send provision request
+            self._publish_provision_request()
             
             # Publish initial status
             self._publish_status()
@@ -136,6 +143,39 @@ class ESP32Device:
     def on_message(self, client, userdata, msg):
         """Callback when message received"""
         self.message_count += 1
+        
+        # Check if it's a provision response
+        if "/provision/response" in msg.topic:
+            print(f"\n{Colors.OKGREEN}📦 PROVISION RESPONSE RECEIVED{Colors.ENDC}")
+            print(f"   Topic: {msg.topic}")
+            try:
+                response = json.loads(msg.payload.decode())
+                if response.get('success'):
+                    print_success("Provision completed successfully!")
+                    doors = response.get('doors', [])
+                    lcds = response.get('lcds', [])
+                    sensors = response.get('sensors', [])
+                    print_info(f"   Created: {len(sensors)} sensors, {len(doors)} doors, {len(lcds)} LCDs")
+                    
+                    # Update local sensors with DB IDs
+                    for db_sensor in sensors:
+                        name = db_sensor.get('name', '') # e.g. Sensor-SLOT1
+                        # Extract slot name (SLOT1)
+                        if name.startswith('Sensor-'):
+                            slot_name = name.replace('Sensor-', '').lower() # slot1
+                            # Find local sensor
+                            for local_sensor in self.sensors:
+                                if local_sensor['id'] == slot_name:
+                                    local_sensor['db_id'] = db_sensor['id']
+                                    print_info(f"   Mapped {local_sensor['id']} -> DB ID: {local_sensor['db_id']}")
+
+                else:
+                    print_error(f"Provision failed: {response.get('message', 'Unknown error')}")
+            except json.JSONDecodeError:
+                print_error("   Invalid JSON in provision response")
+            return
+        
+        # Handle other commands
         print(f"\n{Colors.OKCYAN}📨 COMMAND RECEIVED{Colors.ENDC}")
         print(f"   Topic:   {msg.topic}")
         print(f"   Payload: {msg.payload.decode()}")
@@ -158,7 +198,7 @@ class ESP32Device:
             "device": self.mc_code,
             "deviceName": self.device_name,
             "status": "online",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "ip": "192.168.1.100",
             "mac": "AA:BB:CC:DD:EE:FF",
             "firmwareVersion": "1.0.0",
@@ -166,6 +206,35 @@ class ESP32Device:
         }
         self.client.publish(topic, json.dumps(payload), retain=True)
         print_success("Published birth message")
+    
+    def _publish_provision_request(self):
+        """Publish provision request to auto-create slots, sensors, doors, LCDs"""
+        topic = f"{self.base_topic}/provision/request"
+        
+        # Convert sensor configs to provision format  
+        sensors_provision = []
+        for sensor in self.sensors:
+            slot_name = sensor['id'].upper()  # slot1 -> SLOT1
+            sensors_provision.append({
+                "name": f"Sensor-{slot_name}",
+                "slotName": slot_name,
+                "type": sensor['type']
+            })
+        
+        payload = {
+            "doors": [
+                {"name": "Entry_Gate"},
+                {"name": "Exit_Gate"}
+            ],
+            "lcds": [
+                {"name": "Main_Display"}
+            ],
+            "sensors": sensors_provision
+        }
+        
+        self.client.publish(topic, json.dumps(payload))
+        print_success("Published provision request")
+        print_info(f"   → Requesting {len(sensors_provision)} sensors, 2 doors, 1 LCD")
     
     def _publish_status(self):
         """Publish device status"""
@@ -176,52 +245,69 @@ class ESP32Device:
             "uptime": self.uptime,
             "freeHeap": random.randint(50000, 100000),
             "rssi": random.randint(-70, -40),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         self.client.publish(topic, json.dumps(payload), retain=True)
     
     def _publish_sensor_data(self):
         """Publish sensor readings"""
-        topic = f"{self.base_topic}/sensors"
+        topic = f"{self.base_topic}/sensor/status" # Fixed topic from /sensors to /sensor/status
         
         readings = []
         for sensor in self.sensors:
+            # Only publish if we have a DB ID
+            if 'db_id' not in sensor:
+                continue
+
             if sensor['type'] == 'ultrasonic':
                 # Distance in cm (10-200cm)
                 distance = random.randint(10, 200)
                 occupied = distance < 50  # Car detected if < 50cm
+                
+                # Payload matching MqttSensorStatusDto
+                payload = {
+                    "sensorId": sensor['db_id'],
+                    "isOccupied": occupied
+                }
+                
+                # Publish individual message per sensor as per Handler expectation?
+                # Handler expects topic: sps/{mqttUsername}/sensor/status
+                # And payload MqttSensorStatusDto (single object)
+                # Simulator loop was aggregating.
+                # If Handler expects single object, we must publish individually.
+                
+                self.client.publish(topic, json.dumps(payload))
+                
                 readings.append({
                     "id": sensor['id'],
-                    "type": sensor['type'],
                     "distance": distance,
                     "occupied": occupied
                 })
+
             elif sensor['type'] == 'infrared':
                 # Binary detection (0 or 1)
                 occupied = random.choice([0, 1])
+                
+                payload = {
+                    "sensorId": sensor['db_id'],
+                    "isOccupied": bool(occupied)
+                }
+                self.client.publish(topic, json.dumps(payload))
+                
                 readings.append({
                     "id": sensor['id'],
-                    "type": sensor['type'],
                     "occupied": bool(occupied)
                 })
         
-        payload = {
-            "device": self.mc_code,
-            "sensors": readings,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        self.client.publish(topic, json.dumps(payload))
-        
-        # Pretty print sensor data
-        print(f"\n{Colors.OKGREEN}📊 SENSOR DATA PUBLISHED{Colors.ENDC}")
-        for reading in readings:
-            if reading['type'] == 'ultrasonic':
+        if readings:
+            # Pretty print sensor data
+            print(f"\n{Colors.OKGREEN}📊 SENSOR DATA PUBLISHED{Colors.ENDC}")
+            for reading in readings:
                 status = "🚗 OCCUPIED" if reading['occupied'] else "🅿️  EMPTY"
-                print(f"   {reading['id']}: {reading['distance']}cm - {status}")
-            else:
-                status = "🚗 OCCUPIED" if reading['occupied'] else "🅿️  EMPTY"
-                print(f"   {reading['id']}: {status}")
+                if 'distance' in reading:
+                    print(f"   {reading['id']}: {reading['distance']}cm - {status}")
+                else:
+                    print(f"   {reading['id']}: {status}")
     
     def _handle_command(self, cmd: Dict):
         """Handle incoming commands from backend"""
@@ -254,7 +340,7 @@ class ESP32Device:
             "device": self.mc_code,
             "response": "pong",
             "uptime": self.uptime,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         self.client.publish(topic, json.dumps(payload))
     
@@ -286,7 +372,7 @@ class ESP32Device:
             "device": self.mc_code,
             "status": "completed",
             "sensors": self.sensors,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         self.client.publish(topic, json.dumps(payload))
     
@@ -312,7 +398,7 @@ class ESP32Device:
         will_payload = json.dumps({
             "device": self.mc_code,
             "status": "offline",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         self.client.will_set(will_topic, will_payload, retain=True)
         
@@ -387,7 +473,7 @@ class ESP32Device:
                 "device": self.mc_code,
                 "status": "offline",
                 "reason": "shutdown",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             self.client.publish(topic, payload, retain=True)
             

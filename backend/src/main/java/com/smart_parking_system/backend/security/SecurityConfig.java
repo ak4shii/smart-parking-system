@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
@@ -47,16 +48,27 @@ public class SecurityConfig {
     @ConditionalOnProperty(name = "security.enabled", havingValue = "true", matchIfMissing = true)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         log.info("Configuring security with authentication enabled");
-        return http.csrf((csrfConfig) -> csrfConfig
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                // Disable CSRF for API endpoints since we're using JWT tokens
-                .ignoringRequestMatchers("/api/**"))
+        return http.csrf((csrfConfig) -> csrfConfig.disable())
                 .cors((corsConfig) -> corsConfig.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests((requests) -> {
-                    requests.requestMatchers("/api/**").permitAll();
-                    requests.requestMatchers("/csrf-token").permitAll();
-                    requests.requestMatchers("/ws/**").permitAll();
+                    // Explicitly allow OPTIONS for CORS preflight
+                    requests.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll();
+
+                    // Use AntPathRequestMatcher to avoid MVC context path ambiguity
+                    // Add /** prefix to handle potential /sps context path or other prefixes
+                    requests.requestMatchers(
+                            new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/**/api/auth/**"))
+                            .permitAll();
+                    requests.requestMatchers(
+                            new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/**/api/**"))
+                            .permitAll();
+                    requests.requestMatchers(
+                            new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/**/ws/**"))
+                            .permitAll();
+                    requests.requestMatchers(
+                            new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/**/csrf-token"))
+                            .permitAll();
+
                     requests.requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll();
                     requests.requestMatchers("/v3/api-docs/**").permitAll();
                     requests.requestMatchers("/swagger-resources/**").permitAll();

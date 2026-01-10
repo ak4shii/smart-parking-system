@@ -84,6 +84,7 @@ export default function HomePage() {
   // Subscribe to real-time slot updates
   useEffect(() => {
     const unsubscribe = subscribe('/topic/overview_updates', (event: any) => {
+      console.log('[WebSocket] Received slot update event:', event);
       if (event?.type !== 'slot_changed') return;
 
       // Backend sends slotId as number; our UI stores id as `S-<number>`
@@ -92,9 +93,9 @@ export default function HomePage() {
         prev.map((s) =>
           s.id === slotKey
             ? {
-                ...s,
-                occupied: Boolean(event.isOccupied),
-              }
+              ...s,
+              occupied: Boolean(event.isOccupied),
+            }
             : s,
         ),
       );
@@ -159,32 +160,32 @@ export default function HomePage() {
 
   const slots = selectedParkingSpaceId
     ? (() => {
-        const filtered = allSlots
-          .filter((slot) => slot.parkingSpaceId === selectedParkingSpaceId)
-          .slice()
-          .sort(
-            (a, b) =>
-              parseInt(a.id.replace('S-', ''), 10) -
-              parseInt(b.id.replace('S-', ''), 10),
-          );
-
-        // Map display labels so that the lowest slot id in this parking space becomes S01, then S02...
-        return filtered.map((slot, idx) => ({
-          ...slot,
-          label: `S${String(idx + 1).padStart(2, '0')}`,
-        }));
-      })()
-    : allSlots
+      const filtered = allSlots
+        .filter((slot) => slot.parkingSpaceId === selectedParkingSpaceId)
         .slice()
         .sort(
           (a, b) =>
-            parseInt(a.id.replace('S-', ''), 10) - parseInt(b.id.replace('S-', ''), 10),
-        )
-        .map((slot) => ({
-          ...slot,
-          // When no parking space is selected, show global numbering by real id
-          label: `S${String(parseInt(slot.id.replace('S-', ''), 10)).padStart(2, '0')}`,
-        }));
+            parseInt(a.id.replace('S-', ''), 10) -
+            parseInt(b.id.replace('S-', ''), 10),
+        );
+
+      // Map display labels so that the lowest slot id in this parking space becomes S01, then S02...
+      return filtered.map((slot, idx) => ({
+        ...slot,
+        label: `S${String(idx + 1).padStart(2, '0')}`,
+      }));
+    })()
+    : allSlots
+      .slice()
+      .sort(
+        (a, b) =>
+          parseInt(a.id.replace('S-', ''), 10) - parseInt(b.id.replace('S-', ''), 10),
+      )
+      .map((slot) => ({
+        ...slot,
+        // When no parking space is selected, show global numbering by real id
+        label: `S${String(parseInt(slot.id.replace('S-', ''), 10)).padStart(2, '0')}`,
+      }));
 
   const total = slots.length;
   const occupied = slots.filter((s) => s.occupied).length;

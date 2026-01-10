@@ -97,7 +97,10 @@ public class MqttSensorHandler {
 
     private String extractPayload(Message<?> message) {
         Object payload = message.getPayload();
-        return payload != null ? String.valueOf(payload) : null;
+        if (payload instanceof byte[]) {
+            return new String((byte[]) payload);
+        }
+        return payload != null ? payload.toString() : null;
     }
 
     private void publishResponse(String topic, Object payload) throws Exception {

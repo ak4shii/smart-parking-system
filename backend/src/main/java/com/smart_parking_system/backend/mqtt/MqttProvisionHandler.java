@@ -32,11 +32,24 @@ public class MqttProvisionHandler {
 
     @ServiceActivator(inputChannel = "mqttProvisionChannel")
     public void handleProvisionRequest(Message<?> message) {
+        log.info(">>> MqttProvisionHandler: Message Received! <<<");
         try {
             String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
-            String payload = new String((byte[]) message.getPayload());
+            log.info(">>> Received topic: {}", topic);
 
-            log.info("Received provision request from topic: {}", topic);
+            Object payloadObj = message.getPayload();
+            log.info(">>> Payload Class: {}", payloadObj != null ? payloadObj.getClass().getName() : "null");
+
+            String payload;
+            if (payloadObj instanceof byte[]) {
+                payload = new String((byte[]) payloadObj);
+            } else if (payloadObj != null) {
+                payload = payloadObj.toString();
+            } else {
+                log.error("Payload is null!");
+                return;
+            }
+            log.info(">>> Payload Content: {}", payload);
 
             if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
                 log.error("Invalid provision topic format: {}", topic);
@@ -44,8 +57,11 @@ public class MqttProvisionHandler {
             }
 
             String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
+            log.info(">>> Extracted mqttUsername: {}", mqttUsername);
+
             String ownerUsername = MqttTopicUtils.extractOwnerUsername(mqttUsername);
             String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+            log.info(">>> Extracted owner: {}, mcCode: {}", ownerUsername, mcCode);
 
             if (mcCode == null || ownerUsername == null) {
                 log.error("Could not parse mqttUsername: {}", mqttUsername);
@@ -53,6 +69,7 @@ public class MqttProvisionHandler {
             }
 
             MqttProvisionRequestDto request = objectMapper.readValue(payload, MqttProvisionRequestDto.class);
+            log.info(">>> DTO Parsed Successfully. Calling service...");
 
             mqttProvisionService.handleProvision(ownerUsername, mcCode, request);
 

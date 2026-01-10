@@ -39,7 +39,14 @@ public class MqttEntryRequestHandler {
     public void handleEntryRequest(Message<?> message) {
         try {
             String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
-            String payload = new String((byte[]) message.getPayload());
+
+            Object payloadObj = message.getPayload();
+            String payload;
+            if (payloadObj instanceof byte[]) {
+                payload = new String((byte[]) payloadObj);
+            } else {
+                payload = payloadObj != null ? payloadObj.toString() : null;
+            }
 
             log.info("Received entry request from topic: {}", topic);
 

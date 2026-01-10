@@ -7,6 +7,7 @@ import com.smart_parking_system.backend.entity.Slot;
 import com.smart_parking_system.backend.repository.SensorRepository;
 import com.smart_parking_system.backend.repository.SlotRepository;
 import com.smart_parking_system.backend.service.IMqttSensorService;
+import com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,8 @@ public class MqttSensorServiceImpl implements IMqttSensorService {
 
     private final SensorRepository sensorRepository;
     private final SlotRepository slotRepository;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final RealtimeEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -24,7 +27,8 @@ public class MqttSensorServiceImpl implements IMqttSensorService {
         Sensor sensor = sensorRepository.findById(status.getSensorId())
                 .orElseThrow(() -> new RuntimeException("Sensor not found with id: " + status.getSensorId()));
 
-        if (sensor.getMc() == null || sensor.getMc().getMcCode() == null || !sensor.getMc().getMcCode().equals(mcCode)) {
+        if (sensor.getMc() == null || sensor.getMc().getMcCode() == null
+                || !sensor.getMc().getMcCode().equals(mcCode)) {
             throw new RuntimeException("Sensor does not belong to microcontroller: " + mcCode);
         }
 
@@ -32,13 +36,23 @@ public class MqttSensorServiceImpl implements IMqttSensorService {
             Slot slot = sensor.getSlot();
             slot.setIsOccupied(status.getIsOccupied());
             slotRepository.save(slot);
+
+            // Broadcast slot status change via WebSocket for real-time UI updates
+            if (slot.getPs() != null) {
+                eventPublisher.publishSlotChanged(slot.getId(), slot.getIsOccupied(), slot.getPs().getId());
+            }
         }
 
         Sensor saved = sensorRepository.save(sensor);
         sensorRepository.flush();
         slotRepository.flush();
 
-        return toDto(saved);
+        SensorDto sensorDto = toDto(saved);
+
+        // Broadcast update via WebSocket
+        messagingTemplate.convertAndSend("/topic/sensors", sensorDto);
+
+        return sensorDto;
     }
 
     private SensorDto toDto(Sensor sensor) {
@@ -59,5 +73,3 @@ public class MqttSensorServiceImpl implements IMqttSensorService {
         return dto;
     }
 }
-
-

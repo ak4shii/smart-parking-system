@@ -27,9 +27,11 @@ import microcontrollerService, {
   type MqttCredentials,
 } from '../services/microcontrollerService';
 import MqttCredentialsDialog from '../components/MqttCredentialsDialog';
+import { useWebSocket } from '../services/websocket';
 
 export default function DevicesPage() {
   const { user, logout } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigate = useNavigate();
   const [allSensors, setAllSensors] = useState<SensorDto[]>([]);
   const [slots, setSlots] = useState<SlotDto[]>([]);
@@ -45,7 +47,29 @@ export default function DevicesPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+
+    // Subscribe to sensor updates (useWebSocket hook handles connection automatically)
+    const unsubscribe = subscribe('/topic/sensors', (updatedSensor: SensorDto) => {
+      console.log('[WebSocket] Received sensor update:', updatedSensor);
+      setAllSensors((prevSensors) => {
+        const index = prevSensors.findIndex((s) => s.id === updatedSensor.id);
+        if (index !== -1) {
+          // Update existing sensor
+          const newSensors = [...prevSensors];
+          newSensors[index] = { ...newSensors[index], ...updatedSensor };
+          return newSensors;
+        } else {
+          // Add new sensor (optional, fits provision flow)
+          return [...prevSensors, updatedSensor];
+        }
+      });
+    });
+
+    return () => {
+      // Cleanup subscription
+      unsubscribe?.();
+    };
+  }, [subscribe]);
 
   const fetchData = async () => {
     try {

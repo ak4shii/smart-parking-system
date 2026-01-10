@@ -1,32 +1,15 @@
 # ===========================================
 # MOSQUITTO ACL - Smart Parking System
 # ===========================================
-# Access Control List for MQTT topics
-# 
-# Topic structure: sps/{username}_{mcCode}/...
-# Example: sps/john_mc12345678/sensor/status
-# ===========================================
 
-# ----- BACKEND SERVICE (full access) -----
-# Backend can read/write all topics under sps/
+# Allow authenticated users to read system status
+topic read $SYS/#
+
+# ----- BACKEND ACCESS (Superuser) -----
+# Allow backend to read/write all topics under sps/
 user sps-backend
 topic readwrite sps/#
 
-# ----- DEVICE ACCESS PATTERN -----
-# Each device (microcontroller) has a unique MQTT account
-# MQTT username format: {ownerUsername}_{mcCode}
-# Example: john_mc12345678
-#
-# %u = MQTT client username
-# Device can only access topics matching: sps/%u/#
-# 
-# This means:
-# - john_mc12345678 can access: sps/john_mc12345678/#
-# - john_mc12345678 CANNOT access: sps/bob_mc87654321/#
+# ----- DEVICE ACCESS (Pattern-based) -----
+# Device can only access topics matching: sps/{username}/#
 pattern readwrite sps/%u/#
-
-# ----- SYSTEM TOPICS (read-only for monitoring) -----
-# Allow all authenticated users to read system status
-topic read $SYS/#
-
-

@@ -8,15 +8,15 @@ import { useAuth } from "../context/AuthContext";
 type EventHandler = (event: any) => void;
 
 function resolveBrokerUrl() {
-  // Prefer Vite env if provided, fallback to backend default (localhost:8080)
-  // Example: VITE_WS_URL=ws://localhost:8080/ws
+  // Prefer Vite env if provided, fallback to backend default (localhost:8080/sps)
+  // Example: VITE_WS_URL=ws://localhost:8080/sps/ws
   const envUrl = (import.meta as any).env?.VITE_WS_URL as string | undefined;
   if (envUrl) return envUrl;
 
   // If frontend is served by backend in production, window.location.host will work.
-  // In dev, backend is typically 8080.
+  // In dev, backend is typically 8080 with /sps context path.
   const host = window.location.hostname;
-  return `ws://${host}:8080/ws`;
+  return `ws://${host}:8080/sps/ws`;
 }
 
 class WebSocketService {
