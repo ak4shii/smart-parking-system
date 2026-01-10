@@ -73,6 +73,8 @@ services:
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
     volumes:
       - ./backend/mosquitto/config:/mosquitto/config
+      # Docker socket access for sending SIGHUP signal to Mosquitto
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
