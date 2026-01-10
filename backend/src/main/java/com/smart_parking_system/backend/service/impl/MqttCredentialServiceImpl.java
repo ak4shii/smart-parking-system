@@ -99,6 +99,7 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
             // Use mosquitto_passwd tool to add/update user
             // -b flag for batch mode (password from command line)
             ProcessBuilder pb = new ProcessBuilder(
+                    "docker", "exec", "sps-mosquitto",
                     "mosquitto_passwd", "-b", mosquittoPasswordFile, mqttUsername, plainPassword);
             pb.redirectErrorStream(true);
             Process process = pb.start();
@@ -141,6 +142,7 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
             // Use mosquitto_passwd tool to delete user
             // -D flag for delete
             ProcessBuilder pb = new ProcessBuilder(
+                    "docker", "exec", "sps-mosquitto",
                     "mosquitto_passwd", "-D", mosquittoPasswordFile, mqttUsername);
             pb.redirectErrorStream(true);
             Process process = pb.start();

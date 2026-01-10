@@ -27,7 +27,8 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Install mosquitto for mosquitto_passwd tool (MQTT credential management)
-RUN apk add --no-cache mosquitto
+# Install docker CLI for sending docker exec commands
+RUN apk add --no-cache mosquitto docker-cli
 
 # Copy the jar from build stage
 COPY --from=build /app/target/*.jar app.jar
