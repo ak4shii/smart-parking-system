@@ -6,8 +6,6 @@ import {
   LayoutDashboard,
   Car,
   KeyRound,
-  DoorOpen,
-  Monitor,
   ShieldCheck,
   ParkingSquare,
   LogOut,
@@ -45,6 +43,13 @@ export default function DevicesPage() {
   // MQTT Credentials dialog state
   const [mqttCredentials, setMqttCredentials] = useState<MqttCredentials | null>(null);
   const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+
+  // Save to localStorage when parking space selection changes
+  useEffect(() => {
+    if (selectedParkingSpaceId) {
+      localStorage.setItem('selectedParkingSpaceId', String(selectedParkingSpaceId));
+    }
+  }, [selectedParkingSpaceId]);
 
   useEffect(() => {
     fetchData();
@@ -86,8 +91,17 @@ export default function DevicesPage() {
       setSlots(slotsData);
       setMicrocontrollers(microcontrollersData);
 
-      // Auto-select first parking space if available
-      if (parkingSpacesData.length > 0) {
+      // Auto-select from localStorage or first parking space
+      const savedParkingSpaceId = localStorage.getItem('selectedParkingSpaceId');
+      if (savedParkingSpaceId) {
+        const savedId = Number(savedParkingSpaceId);
+        const exists = parkingSpacesData.some(ps => ps.id === savedId);
+        if (exists) {
+          setSelectedParkingSpaceId(savedId);
+        } else if (parkingSpacesData.length > 0) {
+          setSelectedParkingSpaceId(parkingSpacesData[0].id);
+        }
+      } else if (parkingSpacesData.length > 0) {
         setSelectedParkingSpaceId(parkingSpacesData[0].id);
       }
     } catch (error: any) {
@@ -264,20 +278,6 @@ export default function DevicesPage() {
             >
               <KeyRound className="h-4 w-4" />
               <span>RFID</span>
-            </button>
-            <button
-              onClick={() => navigate('/doors')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <DoorOpen className="h-4 w-4" />
-              <span>Doors</span>
-            </button>
-            <button
-              onClick={() => navigate('/lcds')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <Monitor className="h-4 w-4" />
-              <span>LCDs</span>
             </button>
             <button
               onClick={() => navigate('/admin')}

@@ -7,8 +7,6 @@ import HomePage from './pages/HomePage';
 import DevicesPage from './pages/DevicesPage';
 import EntryLogPage from './pages/EntryLogPage';
 import RfidPage from './pages/RfidPage';
-import DoorPage from './pages/DoorPage';
-import LcdPage from './pages/LcdPage';
 import AdminPage from './pages/AdminPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -51,22 +49,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/doors"
-            element={
-              <ProtectedRoute>
-                <DoorPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/lcds"
-            element={
-              <ProtectedRoute>
-                <LcdPage />
-              </ProtectedRoute>
-            }
-          />
+
           <Route
             path="/admin"
             element={

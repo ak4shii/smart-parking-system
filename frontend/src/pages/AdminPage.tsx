@@ -10,8 +10,6 @@ import {
   Radio,
   Car,
   KeyRound,
-  DoorOpen,
-  Monitor,
   ShieldCheck,
   ParkingSquare,
   LogOut,
@@ -482,20 +480,6 @@ export default function AdminPage() {
             >
               <KeyRound className="h-4 w-4" />
               <span>RFID</span>
-            </button>
-            <button
-              onClick={() => navigate('/doors')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <DoorOpen className="h-4 w-4" />
-              <span>Doors</span>
-            </button>
-            <button
-              onClick={() => navigate('/lcds')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <Monitor className="h-4 w-4" />
-              <span>LCDs</span>
             </button>
             <div className="flex items-center gap-3 rounded-2xl bg-slate-100 px-3 py-2.5 text-sm ring-1 ring-slate-200">
               <ShieldCheck className="h-4 w-4 text-slate-600" />

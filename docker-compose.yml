@@ -68,7 +68,7 @@ services:
       # MQTT configuration
       MQTT_BROKER_URI: tcp://mosquitto:1883
       MQTT_USERNAME: sps-backend
-      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-changeme_in_production}
+      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-sps_backend_secret}
       MQTT_PASSWORD_FILE_PATH: /mosquitto/config/passwords
       MQTT_PUBLIC_HOST: ${MQTT_PUBLIC_HOST:-localhost}
       MQTT_PUBLIC_PORT: ${MQTT_PUBLIC_PORT:-1883}

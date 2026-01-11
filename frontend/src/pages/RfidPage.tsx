@@ -6,8 +6,6 @@ import {
   Trash2,
   Search,
   X,
-  DoorOpen,
-  Monitor,
   LayoutDashboard,
   Radio,
   Car,
@@ -46,6 +44,13 @@ export default function RfidPage() {
     fetchData();
   }, []);
 
+  // Save to localStorage when parking space selection changes
+  useEffect(() => {
+    if (selectedParkingSpaceId) {
+      localStorage.setItem('selectedParkingSpaceId', String(selectedParkingSpaceId));
+    }
+  }, [selectedParkingSpaceId]);
+
   const fetchData = async () => {
     try {
       setIsLoading(true);
@@ -56,8 +61,17 @@ export default function RfidPage() {
       setAllRfids(rfidsData);
       setParkingSpaces(parkingSpacesData);
 
-      // Auto-select first parking space if available
-      if (parkingSpacesData.length > 0) {
+      // Auto-select from localStorage or first parking space
+      const savedParkingSpaceId = localStorage.getItem('selectedParkingSpaceId');
+      if (savedParkingSpaceId) {
+        const savedId = Number(savedParkingSpaceId);
+        const exists = parkingSpacesData.some(ps => ps.id === savedId);
+        if (exists) {
+          setSelectedParkingSpaceId(savedId);
+        } else if (parkingSpacesData.length > 0) {
+          setSelectedParkingSpaceId(parkingSpacesData[0].id);
+        }
+      } else if (parkingSpacesData.length > 0) {
         setSelectedParkingSpaceId(parkingSpacesData[0].id);
       }
     } catch (error: any) {
@@ -207,20 +221,6 @@ export default function RfidPage() {
               <KeyRound className="h-4 w-4 text-slate-600" />
               <span className="text-slate-900">RFID</span>
             </div>
-            <button
-              onClick={() => navigate('/doors')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <DoorOpen className="h-4 w-4" />
-              <span>Doors</span>
-            </button>
-            <button
-              onClick={() => navigate('/lcds')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <Monitor className="h-4 w-4" />
-              <span>LCDs</span>
-            </button>
             <button
               onClick={() => navigate('/admin')}
               className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
