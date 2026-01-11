@@ -170,7 +170,7 @@ void MQTTController::parseCommand(const String& payload) {
         return;
     }
     
-    String commandType = doc["commandType"] | "";
+    String commandType = doc["commandtype"] | "";
     String command = doc["command"] | "";
     
     CommandType cmd = CommandType::NONE;

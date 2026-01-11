@@ -45,24 +45,14 @@ static bool entryGateWaitingForCommand = false;
 static bool exitGateWaitingForCommand = false;
 static String pendingEntryRfid = "";
 static String pendingExitRfid = "";
-static unsigned long entryCommandWaitStartTime = 0;
-static unsigned long exitCommandWaitStartTime = 0;
 
 // Timing variables
 static unsigned long lastRfidScan = 0;
 static unsigned long lastUltrasonicScan = 0;
 static unsigned long provisioningStartTime = 0;
-static int provisioningRetryCount = 0;
-static unsigned long unauthorizedMessageShownTime = 0;
 
-// IR sensor tracking - time when car was last detected
-static unsigned long entryCarLastDetected = 0;
-static unsigned long exitCarLastDetected = 0;
-static bool entryCarWasDetected = false;
-static bool exitCarWasDetected = false;
-
-// IR sensor delay before closing gate (2 seconds)
-static const unsigned long IR_DELAY_BEFORE_CLOSE_MS = 2000;
+// Provisioning timeout (30 seconds)
+static const unsigned long PROVISIONING_TIMEOUT_MS = 30000;
 
 // ============================================================================
 // CALLBACKS
@@ -76,7 +66,6 @@ void onMQTTCommand(CommandType cmd) {
                 servoController.openEntryGate();
                 entryGateWaitingForCommand = false;
                 pendingEntryRfid = "";
-                entryCommandWaitStartTime = 0;
             }
             break;
             
@@ -86,7 +75,6 @@ void onMQTTCommand(CommandType cmd) {
                 servoController.openExitGate();
                 exitGateWaitingForCommand = false;
                 pendingExitRfid = "";
-                exitCommandWaitStartTime = 0;
             }
             break;
             
@@ -253,7 +241,6 @@ void loop() {
                         DEBUG_PRINTLN("[Main] No component IDs, starting provisioning...");
                         currentState = SystemState::PROVISIONING;
                         provisioningStartTime = currentMillis;
-                        provisioningRetryCount = 0;
                     }
                 } else {
                     lcdController.showError("MQTT Failed");
@@ -288,24 +275,10 @@ void loop() {
             
             // Check for timeout
             if (currentMillis - provisioningStartTime > PROVISIONING_TIMEOUT_MS) {
-                provisioningRetryCount++;
-                DEBUG_PRINTF("[Main] Provisioning timeout, retry %d/%d\n", 
-                             provisioningRetryCount, PROVISIONING_MAX_RETRIES);
-                
-                if (provisioningRetryCount >= PROVISIONING_MAX_RETRIES) {
-                    // Max retries reached, reset credentials
-                    DEBUG_PRINTLN("[Main] Max provisioning retries reached, resetting credentials...");
-                    lcdController.showMessage("Prov. Failed", "Resetting...");
-                    delay(2000);
-                    
-                    credentialManager.clearAll();
-                    ESP.restart();
-                } else {
-                    // Retry provisioning
-                    lcdController.showError("Prov. Timeout");
-                    delay(2000);
-                    provisioningStartTime = currentMillis;
-                }
+                lcdController.showError("Prov. Timeout");
+                delay(2000);
+                // Retry provisioning
+                provisioningStartTime = currentMillis;
             }
             break;
         }
@@ -340,74 +313,31 @@ void loop() {
                 lastRfidScan = currentMillis;
                 
                 // Scan entry RFID
-                String entryCard = rfidController.scanEntry();
-                if (entryCard.length() > 0) {
-                    DEBUG_PRINTF("[Main] Entry card scanned: %s\n", entryCard.c_str());
-                    
-                    // Only process if gate is closed and not waiting for command
-                    if (!entryGateWaitingForCommand && !servoController.isGateOpen(GateId::ENTRY)) {
+                if (!entryGateWaitingForCommand && !servoController.isGateOpen(GateId::ENTRY)) {
+                    String entryCard = rfidController.scanEntry();
+                    if (entryCard.length() > 0) {
+                        DEBUG_PRINTF("[Main] Entry card scanned: %s\n", entryCard.c_str());
+                        
                         // Send entry request to server
                         mqttController.publishEntryRequest(entryCard);
                         entryGateWaitingForCommand = true;
                         pendingEntryRfid = entryCard;
-                        entryCommandWaitStartTime = currentMillis;
                     }
                 }
                 
                 // Scan exit RFID
-                String exitCard = rfidController.scanExit();
-                if (exitCard.length() > 0) {
-                    DEBUG_PRINTF("[Main] Exit card scanned: %s\n", exitCard.c_str());
-                    
-                    // Only process if gate is closed and not waiting for command
-                    if (!exitGateWaitingForCommand && !servoController.isGateOpen(GateId::EXIT)) {
+                if (!exitGateWaitingForCommand && !servoController.isGateOpen(GateId::EXIT)) {
+                    String exitCard = rfidController.scanExit();
+                    if (exitCard.length() > 0) {
+                        DEBUG_PRINTF("[Main] Exit card scanned: %s\n", exitCard.c_str());
+                        
                         // Send exit request to server
                         mqttController.publishExitRequest(exitCard);
                         exitGateWaitingForCommand = true;
                         pendingExitRfid = exitCard;
-                        exitCommandWaitStartTime = currentMillis;
                     }
                 }
             }
-            
-            // ------------------------------------------------------------
-            // Command Timeout Handling
-            // ------------------------------------------------------------
-            // Check if entry command timed out
-            if (entryGateWaitingForCommand) {
-                if (currentMillis - entryCommandWaitStartTime >= RFID_COMMAND_TIMEOUT_MS) {
-                    DEBUG_PRINTF("[Main] Entry command timeout for card: %s\n", pendingEntryRfid.c_str());
-                    lcdController.showMessage("Card", "Unauthorized");
-                    unauthorizedMessageShownTime = currentMillis;
-                    entryGateWaitingForCommand = false;
-                    pendingEntryRfid = "";
-                    entryCommandWaitStartTime = 0;
-                }
-            }
-            
-            // Check if exit command timed out
-            if (exitGateWaitingForCommand) {
-                if (currentMillis - exitCommandWaitStartTime >= RFID_COMMAND_TIMEOUT_MS) {
-                    DEBUG_PRINTF("[Main] Exit command timeout for card: %s\n", pendingExitRfid.c_str());
-                    lcdController.showMessage("Card", "Unauthorized");
-                    unauthorizedMessageShownTime = currentMillis;
-                    exitGateWaitingForCommand = false;
-                    pendingExitRfid = "";
-                    exitCommandWaitStartTime = 0;
-                }
-            }
-            
-            // ------------------------------------------------------------
-            // Restore LCD Display After Unauthorized Message
-            // ------------------------------------------------------------
-            // if (unauthorizedMessageShownTime > 0 && 
-            //     currentMillis - unauthorizedMessageShownTime >= 2000) {
-            //     // 2 seconds passed, restore normal slot display
-            //     int available = ultrasonicController.getAvailableSlots();
-            //     int total = ultrasonicController.getTotalSlots();
-            //     lcdController.updateSlots(available, total);
-            //     unauthorizedMessageShownTime = 0;
-            // }
             
             // ------------------------------------------------------------
             // Gate Control with IR Sensors
@@ -415,45 +345,27 @@ void loop() {
             // Entry gate: keep open while car is passing
             if (servoController.isGateOpen(GateId::ENTRY)) {
                 bool carAtEntry = irController.isCarAtEntry();
+                unsigned long openDuration = servoController.getGateOpenDuration(GateId::ENTRY);
                 
-                if (carAtEntry) {
-                    // Car detected - update last detected time
-                    entryCarLastDetected = currentMillis;
-                    entryCarWasDetected = true;
-                } else if (entryCarWasDetected) {
-                    // Car was detected before but not now - check if 5 seconds passed
-                    if (currentMillis - entryCarLastDetected >= IR_DELAY_BEFORE_CLOSE_MS) {
-                        DEBUG_PRINTLN("[Main] Entry gate: car passed (5s delay), closing");
-                        servoController.closeGate(GateId::ENTRY);
-                        entryCarWasDetected = false;
-                    }
+                // Close gate if no car detected and some time has passed
+                if (!carAtEntry && openDuration > 1000) {
+                    DEBUG_PRINTLN("[Main] Entry gate: car passed, closing");
+                    servoController.closeGate(GateId::ENTRY);
                 }
-                // Note: 30s max timeout is handled by ServoController
-            } else {
-                // Gate is closed, reset tracking
-                entryCarWasDetected = false;
+                // Note: 30s timeout is handled by ServoController
             }
             
             // Exit gate: keep open while car is passing
             if (servoController.isGateOpen(GateId::EXIT)) {
                 bool carAtExit = irController.isCarAtExit();
+                unsigned long openDuration = servoController.getGateOpenDuration(GateId::EXIT);
                 
-                if (carAtExit) {
-                    // Car detected - update last detected time
-                    exitCarLastDetected = currentMillis;
-                    exitCarWasDetected = true;
-                } else if (exitCarWasDetected) {
-                    // Car was detected before but not now - check if 5 seconds passed
-                    if (currentMillis - exitCarLastDetected >= IR_DELAY_BEFORE_CLOSE_MS) {
-                        DEBUG_PRINTLN("[Main] Exit gate: car passed (5s delay), closing");
-                        servoController.closeGate(GateId::EXIT);
-                        exitCarWasDetected = false;
-                    }
+                // Close gate if no car detected and some time has passed
+                if (!carAtExit && openDuration > 1000) {
+                    DEBUG_PRINTLN("[Main] Exit gate: car passed, closing");
+                    servoController.closeGate(GateId::EXIT);
                 }
-                // Note: 30s max timeout is handled by ServoController
-            } else {
-                // Gate is closed, reset tracking
-                exitCarWasDetected = false;
+                // Note: 30s timeout is handled by ServoController
             }
             
             // ------------------------------------------------------------

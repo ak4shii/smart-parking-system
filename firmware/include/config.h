@@ -60,15 +60,8 @@
 // RFID scan interval (in milliseconds)
 #define RFID_SCAN_INTERVAL_MS       200
 
-// RFID command response timeout (in milliseconds)
-#define RFID_COMMAND_TIMEOUT_MS     5000
-
 // Ultrasonic scan interval (in milliseconds)
 #define ULTRASONIC_SCAN_INTERVAL_MS 500
-
-// Provisioning timeout and retry settings
-#define PROVISIONING_TIMEOUT_MS         30000   // 30 seconds per retry
-#define PROVISIONING_MAX_RETRIES        3       // Max retry attempts before reset
 
 // Total parking slots (number of ultrasonic sensors)
 #define TOTAL_PARKING_SLOTS         2
