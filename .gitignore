@@ -1,11 +1,12 @@
 # Node
 node_modules/
-
+.pio/
 # Build
 /dist/
 /build/
 /target/
-
+crops/
+uploads/
 # IDE
 .vscode/
 .idea/

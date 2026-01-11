@@ -1,0 +1,12 @@
+services:
+  lpr-server:
+    build: ./backend
+    container_name: lpr_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1  # <--- Add this line
+    volumes:
+      - ./backend/weights:/app/weights
+      - ./data:/app/data
+    restart: always
