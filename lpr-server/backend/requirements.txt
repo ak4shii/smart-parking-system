@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+opencv-python-headless
+ultralytics==8.0.114
+paddlepaddle
+paddleocr
+boto3
+python-dotenv

@@ -5,7 +5,8 @@ node_modules/
 /dist/
 /build/
 /target/
-
+crops/
+uploads/
 # IDE
 .vscode/
 .idea/
