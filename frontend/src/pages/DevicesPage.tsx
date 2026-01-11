@@ -15,6 +15,7 @@ import {
   Activity,
   Wifi,
   WifiOff,
+  Clock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -180,6 +181,39 @@ export default function DevicesPage() {
   const activeSensors = sensors.filter((s) => getMicrocontrollerStatus(s.microcontrollerId)).length;
   const ultrasonicCount = sensors.filter((s) => s.type === 'ultrasonic').length;
   const infraredCount = sensors.filter((s) => s.type === 'infrared').length;
+
+  // Filter microcontrollers by selected parking space
+  const filteredMicrocontrollers = selectedParkingSpaceId
+    ? microcontrollers.filter((mc) => mc.parkingSpaceId === selectedParkingSpaceId)
+    : microcontrollers;
+
+  // Format uptime to human readable string
+  const formatUptime = (seconds: number) => {
+    if (!seconds || seconds <= 0) return '—';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  // Format last seen timestamp
+  const formatLastSeen = (timestamp: string | null) => {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -479,11 +513,15 @@ export default function DevicesPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="text-slate-500">Loading microcontrollers...</div>
               </div>
-            ) : microcontrollers.length === 0 ? (
+            ) : filteredMicrocontrollers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <Radio className="h-12 w-12 text-slate-300" />
                 <div className="mt-3 text-slate-900 font-semibold">No Microcontrollers</div>
-                <div className="mt-1 text-sm text-slate-500">Create a parking space to add microcontrollers</div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {selectedParkingSpace
+                    ? `${selectedParkingSpace.name} has no microcontrollers`
+                    : 'Create a parking space to add microcontrollers'}
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -494,12 +532,13 @@ export default function DevicesPage() {
                       <th className="pb-3 text-left text-xs font-semibold text-slate-500">Name</th>
                       <th className="pb-3 text-left text-xs font-semibold text-slate-500">Code</th>
                       <th className="pb-3 text-left text-xs font-semibold text-slate-500">Status</th>
-                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">MQTT Status</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Uptime</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Last Seen</th>
                       <th className="pb-3 text-right text-xs font-semibold text-slate-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {microcontrollers.map((mc) => (
+                    {filteredMicrocontrollers.map((mc) => (
                       <tr key={mc.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-4 text-sm text-slate-600">#{mc.id}</td>
                         <td className="py-4">
@@ -527,16 +566,13 @@ export default function DevicesPage() {
                           )}
                         </td>
                         <td className="py-4">
-                          {mc.mqttEnabled ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
-                              <ShieldCheck className="h-3 w-3" />
-                              Active
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                              ⚠️ Revoked
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                            {formatUptime(mc.uptimeSec)}
+                          </div>
+                        </td>
+                        <td className="py-4 text-sm text-slate-600">
+                          {formatLastSeen(mc.lastSeen)}
                         </td>
                         <td className="py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
