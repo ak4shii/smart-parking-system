@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.channel.PublishSubscribeChannel;
 import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
@@ -19,13 +20,13 @@ import org.springframework.messaging.MessageHandler;
  * MQTT Configuration for Smart Parking System.
  * 
  * Topic Structure (secured with per-device ACL):
- * - sps/{mqttUsername}/entry/request    - Entry gate requests
- * - sps/{mqttUsername}/exit/request     - Exit gate requests
- * - sps/{mqttUsername}/status           - Device status updates
- * - sps/{mqttUsername}/sensor/status    - Sensor data
+ * - sps/{mqttUsername}/entry/request - Entry gate requests
+ * - sps/{mqttUsername}/exit/request - Exit gate requests
+ * - sps/{mqttUsername}/status - Device status updates
+ * - sps/{mqttUsername}/sensor/status - Sensor data
  * - sps/{mqttUsername}/provision/request - Device provisioning
- * - sps/{mqttUsername}/command          - Commands to device
- * - sps/{mqttUsername}/camera           - Camera triggers
+ * - sps/{mqttUsername}/command - Commands to device
+ * - sps/{mqttUsername}/camera - Camera triggers
  * 
  * Where mqttUsername = {ownerUsername}_{mcCode}
  * Example: sps/john_mc12345678/sensor/status
@@ -90,7 +91,7 @@ public class MqttConfig {
 
     @Bean
     public MessageChannel mqttEntryRequestChannel() {
-        return new DirectChannel();
+        return new PublishSubscribeChannel();
     }
 
     /**

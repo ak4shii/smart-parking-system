@@ -98,8 +98,14 @@ public class EntryLogServiceImpl implements IEntryLogService {
         rfid.setCurrentlyUsed(true);
         rfidRepository.save(rfid);
 
+        // Broadcast RFID status change via WebSocket
+        eventPublisher.publishRfidChanged(rfid.getId(), rfid.getRfidCode(), true, rfid.getPs().getId());
+
         EntryLog saved = entryLogRepository.save(entryLog);
         entryLogRepository.flush();
+
+        // Broadcast entry log event via WebSocket
+        eventPublisher.publishVehicleEntered(saved.getId(), saved.getLicensePlate(), rfidCode, rfid.getPs().getId());
 
         return toDto(saved);
     }
