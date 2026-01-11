@@ -10,6 +10,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 public class JWTTokenValidationFilter extends OncePerRequestFilter {
 
@@ -72,6 +74,8 @@ public class JWTTokenValidationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getServletPath();
-        return publicPaths.stream().anyMatch(publicPath -> antPathMatcher.match(publicPath, path));
+        boolean isPublic = publicPaths.stream().anyMatch(publicPath -> antPathMatcher.match(publicPath, path));
+        log.debug("JWT Filter - Path: '{}', isPublic: {}, publicPaths: {}", path, isPublic, publicPaths);
+        return isPublic;
     }
 }
