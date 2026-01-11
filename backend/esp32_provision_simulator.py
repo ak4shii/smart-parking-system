@@ -87,6 +87,19 @@ class ESP32Device:
             {"id": "slot3", "type": "infrared", "pin": 27},
         ]
         
+        # Simulate RFID cards
+        self.rfid_cards = [
+            {"code": "RFID001", "owner": "John Doe"},
+            {"code": "RFID002", "owner": "Jane Smith"},
+            {"code": "RFID003", "owner": "Bob Johnson"},
+        ]
+        
+        # Track door states 
+        self.door_states = {"entry": False, "exit": False}  # False=closed, True=open
+        
+        # LCD display state
+        self.lcd_display = "Welcome!"
+        
         print_header("ESP32 DEVICE INITIALIZED")
         print(f"Device Name:  {Colors.BOLD}{self.device_name}{Colors.ENDC}")
         print(f"Device Code:  {Colors.BOLD}{self.mc_code}{Colors.ENDC}")
@@ -94,6 +107,7 @@ class ESP32Device:
         print(f"MQTT User:    {self.mqtt_username}")
         print(f"Base Topic:   {self.base_topic}")
         print(f"Sensors:      {len(self.sensors)} configured")
+        print(f"RFID Cards:   {len(self.rfid_cards)} registered")
     
     def on_connect(self, client, userdata, flags, rc):
         """Callback when connected to MQTT broker"""
@@ -105,6 +119,17 @@ class ESP32Device:
             cmd_topic = f"{self.base_topic}/cmd/#"
             client.subscribe(cmd_topic)
             print_info(f"Subscribed to: {cmd_topic}")
+            
+            # Subscribe to door/camera/lcd commands from backend
+            command_topic = f"{self.base_topic}/command"
+            camera_topic = f"{self.base_topic}/camera"
+            lcd_topic = f"{self.base_topic}/lcd"
+            client.subscribe(command_topic)
+            client.subscribe(camera_topic)
+            client.subscribe(lcd_topic)
+            print_info(f"Subscribed to: {command_topic}")
+            print_info(f"Subscribed to: {camera_topic}")
+            print_info(f"Subscribed to: {lcd_topic}")
             
             # Subscribe to provision response
             provision_response_topic = f"{self.base_topic}/provision/response"
@@ -175,7 +200,34 @@ class ESP32Device:
                 print_error("   Invalid JSON in provision response")
             return
         
-        # Handle other commands
+        # Handle door command from backend
+        if msg.topic.endswith("/command"):
+            try:
+                cmd = json.loads(msg.payload.decode())
+                self._handle_door_command(cmd)
+            except json.JSONDecodeError:
+                print_error("Invalid JSON in door command")
+            return
+        
+        # Handle camera command from backend
+        if msg.topic.endswith("/camera"):
+            try:
+                cmd = json.loads(msg.payload.decode())
+                self._handle_camera_command(cmd)
+            except json.JSONDecodeError:
+                print_error("Invalid JSON in camera command")
+            return
+        
+        # Handle LCD command from backend
+        if msg.topic.endswith("/lcd"):
+            try:
+                cmd = json.loads(msg.payload.decode())
+                self._handle_lcd_command(cmd)
+            except json.JSONDecodeError:
+                print_error("Invalid JSON in LCD command")
+            return
+        
+        # Handle other commands (cmd/#)
         print(f"\n{Colors.OKCYAN}📨 COMMAND RECEIVED{Colors.ENDC}")
         print(f"   Topic:   {msg.topic}")
         print(f"   Payload: {msg.payload.decode()}")
@@ -333,6 +385,97 @@ class ESP32Device:
         else:
             print_warning(f"   → Unknown command: {cmd_type}")
     
+    def _handle_door_command(self, cmd: Dict):
+        """Handle door control command from backend"""
+        command_type = cmd.get('commandType', '')  # 'entry' or 'exit'
+        command = cmd.get('command', '')  # 'open' or 'close'
+        
+        print(f"\n{Colors.OKGREEN}🚪 DOOR COMMAND RECEIVED{Colors.ENDC}")
+        print(f"   Type: {command_type}")
+        print(f"   Command: {command}")
+        
+        if command == 'open':
+            self.door_states[command_type] = True
+            print_success(f"   → Opening {command_type} door...")
+            # Simulate door motor
+            time.sleep(0.5)
+            print_success(f"   → {command_type.upper()} door is now OPEN")
+            
+            # Auto-close after 5 seconds (simulated)
+            print_info(f"   → Door will auto-close in 5s")
+        elif command == 'close':
+            self.door_states[command_type] = False
+            print_info(f"   → Closing {command_type} door...")
+    
+    def _handle_camera_command(self, cmd: Dict):
+        """Handle camera command from backend (for license plate capture)"""
+        command_type = cmd.get('commandType', '')
+        command = cmd.get('command', '')
+        rfid_code = cmd.get('rfidCode', '')
+        
+        print(f"\n{Colors.OKGREEN}📷 CAMERA COMMAND RECEIVED{Colors.ENDC}")
+        print(f"   Type: {command_type}")
+        print(f"   Command: {command}")
+        print(f"   RFID: {rfid_code}")
+        
+        if command == 'snap':
+            print_info("   → Capturing license plate image...")
+            time.sleep(0.3)
+            # Simulate captured plate
+            plate = f"51A-{random.randint(100,999)}.{random.randint(10,99)}"
+            print_success(f"   → Captured: {plate}")
+            
+            # Note: In real implementation, ESP32 would use camera module
+            # and send image to backend for OCR processing
+    
+    def _handle_lcd_command(self, cmd: Dict):
+        """Handle LCD display command from backend"""
+        lcd_id = cmd.get('lcdId', 1)
+        display_text = cmd.get('displayText', '')
+        
+        print(f"\n{Colors.OKGREEN}📺 LCD COMMAND RECEIVED{Colors.ENDC}")
+        print(f"   LCD ID: {lcd_id}")
+        print(f"   Display: {display_text}")
+        
+        self.lcd_display = display_text
+        print_success(f"   → LCD updated: [{display_text}]")
+    
+    def _simulate_rfid_entry(self):
+        """Simulate RFID card scan at entry gate"""
+        # Pick random RFID card
+        card = random.choice(self.rfid_cards)
+        
+        print(f"\n{Colors.WARNING}🔖 RFID CARD SCANNED (Entry){Colors.ENDC}")
+        print(f"   Card: {card['code']}")
+        print(f"   Owner: {card['owner']}")
+        
+        # Publish entry request to backend
+        topic = f"{self.base_topic}/entry/request"
+        payload = {
+            "rfidCode": card['code']
+        }
+        self.client.publish(topic, json.dumps(payload))
+        print_success(f"   → Published entry request")
+        print_info("   → Waiting for backend response (door command)...")
+    
+    def _simulate_rfid_exit(self):
+        """Simulate RFID card scan at exit gate"""
+        # Pick random RFID card
+        card = random.choice(self.rfid_cards)
+        
+        print(f"\n{Colors.WARNING}🔖 RFID CARD SCANNED (Exit){Colors.ENDC}")
+        print(f"   Card: {card['code']}")
+        print(f"   Owner: {card['owner']}")
+        
+        # Publish exit request to backend
+        topic = f"{self.base_topic}/exit/request"
+        payload = {
+            "rfidCode": card['code']
+        }
+        self.client.publish(topic, json.dumps(payload))
+        print_success(f"   → Published exit request")
+        print_info("   → Waiting for backend response (door command)...")
+    
     def _respond_pong(self):
         """Respond to ping command"""
         topic = f"{self.base_topic}/pong"
@@ -439,10 +582,14 @@ class ESP32Device:
             return
         
         print_step(2, f"Starting main loop (duration: {duration}s, interval: {interval}s)")
-        print_info("Press Ctrl+C to stop\n")
+        print_info("Press Ctrl+C to stop")
+        print_info("RFID simulation will trigger every 15 seconds\n")
         
         start_time = time.time()
         last_publish = 0
+        last_rfid = 0
+        rfid_interval = 15  # Simulate RFID scan every 15 seconds
+        rfid_type = "entry"  # Alternate between entry and exit
         
         try:
             while (time.time() - start_time) < duration:
@@ -454,6 +601,16 @@ class ESP32Device:
                     self._publish_sensor_data()
                     self._publish_status()
                     last_publish = current_time
+                
+                # Simulate RFID scan at interval
+                if current_time - last_rfid >= rfid_interval:
+                    if rfid_type == "entry":
+                        self._simulate_rfid_entry()
+                        rfid_type = "exit"
+                    else:
+                        self._simulate_rfid_exit()
+                        rfid_type = "entry"
+                    last_rfid = current_time
                 
                 time.sleep(0.5)
             

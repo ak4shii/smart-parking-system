@@ -140,6 +140,7 @@ export default function LcdPage() {
     if (!selectedParkingSpaceId) return;
 
     const unsubscribe = subscribe('/topic/lcd_updates', (event: any) => {
+      console.log('[WebSocket] LCD update received:', event);
       // Only process events for the currently selected parking space
       if (event?.type === 'lcd_changed' && event.parkingSpaceId === selectedParkingSpaceId) {
         // Update the LCD in the list
@@ -150,7 +151,13 @@ export default function LcdPage() {
               : lcd
           )
         );
-        
+
+        // Also update the draft state to keep input in sync
+        setDraft((prev) => ({
+          ...prev,
+          [event.lcdId]: event.display
+        }));
+
         // Show toast notification
         toast.success(`LCD "${event.lcdName}" updated`);
       }

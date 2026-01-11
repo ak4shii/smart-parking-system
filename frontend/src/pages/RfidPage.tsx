@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   KeyRound,
   Plus,
   Trash2,
@@ -21,9 +21,11 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import rfidService, { type RfidDto, type CreateRfidRequest } from '../services/rfidService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
+import { useWebSocket } from '../services/websocket';
 
 export default function RfidPage() {
   const { user, logout } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigate = useNavigate();
   const [allRfids, setAllRfids] = useState<RfidDto[]>([]);
   const [parkingSpaces, setParkingSpaces] = useState<ParkingSpaceDto[]>([]);
@@ -53,7 +55,7 @@ export default function RfidPage() {
       ]);
       setAllRfids(rfidsData);
       setParkingSpaces(parkingSpacesData);
-      
+
       // Auto-select first parking space if available
       if (parkingSpacesData.length > 0) {
         setSelectedParkingSpaceId(parkingSpacesData[0].id);
@@ -66,14 +68,42 @@ export default function RfidPage() {
     }
   };
 
+  // Subscribe to real-time RFID updates
+  useEffect(() => {
+    if (!selectedParkingSpaceId) return;
+
+    const unsubscribe = subscribe('/topic/rfid_updates', (event: any) => {
+      console.log('[WebSocket] RFID update received:', event);
+      // Only process events for the currently selected parking space
+      if (event?.type === 'rfid_changed' && event.parkingSpaceId === selectedParkingSpaceId) {
+        // Update the RFID in the list
+        setAllRfids((prevRfids) =>
+          prevRfids.map((rfid) =>
+            rfid.id === event.rfidId
+              ? { ...rfid, currentlyUsed: event.currentlyUsed }
+              : rfid
+          )
+        );
+
+        // Show toast notification
+        const status = event.currentlyUsed ? 'now in use' : 'now available';
+        toast.success(`RFID "${event.rfidCode}" is ${status}`);
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [subscribe, selectedParkingSpaceId]);
+
   const handleCreateRfid = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.rfidCode.trim()) {
       toast.error('RFID code is required');
       return;
     }
-    
+
     if (!formData.parkingSpaceId) {
       toast.error('Please select a parking space');
       return;
@@ -120,7 +150,7 @@ export default function RfidPage() {
     : allRfids;
 
   // Then filter by search term
-  const filteredRfids = rfids.filter(rfid => 
+  const filteredRfids = rfids.filter(rfid =>
     rfid.rfidCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
     getParkingSpaceName(rfid.parkingSpaceId).toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -310,7 +340,7 @@ export default function RfidPage() {
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
               <h2 className="text-lg font-semibold text-slate-900">RFID Cards</h2>
-              
+
               <div className="flex items-center gap-3">
                 {/* Search */}
                 <div className="relative">
@@ -359,10 +389,10 @@ export default function RfidPage() {
                   {searchTerm ? 'No RFID cards found' : 'No RFID cards yet'}
                 </div>
                 <div className="mt-1 text-sm text-slate-500">
-                  {searchTerm 
-                    ? 'Try adjusting your search terms' 
-                    : selectedParkingSpace 
-                      ? `${selectedParkingSpace.name} has no RFID cards yet` 
+                  {searchTerm
+                    ? 'Try adjusting your search terms'
+                    : selectedParkingSpace
+                      ? `${selectedParkingSpace.name} has no RFID cards yet`
                       : 'Add RFID cards to get started'}
                 </div>
                 {!searchTerm && (

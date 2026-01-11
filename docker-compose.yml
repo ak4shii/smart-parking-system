@@ -24,11 +24,15 @@ services:
 
   # MQTT Broker
   mosquitto:
-    image: eclipse-mosquitto:2
+    build:
+      context: ./backend/mosquitto
+      dockerfile: Dockerfile
     container_name: sps-mosquitto
     restart: unless-stopped
     ports:
       - "1883:1883"
+    environment:
+      MQTT_BACKEND_PASSWORD: ${MQTT_BACKEND_PASSWORD:-sps_backend_secret}
     volumes:
       - ./backend/mosquitto/config:/mosquitto/config
       - ./backend/mosquitto/data:/mosquitto/data

@@ -49,6 +49,7 @@ export default function EntryLogPage() {
     if (!selectedParkingSpaceId) return;
 
     const unsubscribe = subscribe('/topic/entrylog_new_events', (event: any) => {
+      console.log('[WebSocket] Entry log event received:', event);
       // Only process events for the currently selected parking space
       if (event?.type === 'entrylog_event' && event.parkingSpaceId === selectedParkingSpaceId) {
         // Refresh the entry logs when a new event occurs

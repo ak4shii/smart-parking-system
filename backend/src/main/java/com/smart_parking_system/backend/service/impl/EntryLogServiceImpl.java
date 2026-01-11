@@ -12,6 +12,7 @@ import com.smart_parking_system.backend.repository.UserParkingSpaceRepository;
 import com.smart_parking_system.backend.repository.UserRepository;
 import com.smart_parking_system.backend.service.IEntryLogService;
 import com.smart_parking_system.backend.service.IYoloService;
+import com.smart_parking_system.backend.service.realtime.RealtimeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -34,6 +35,7 @@ public class EntryLogServiceImpl implements IEntryLogService {
     private final MicrocontrollerRepository microcontrollerRepository;
     private final RfidRepository rfidRepository;
     private final IYoloService yoloService;
+    private final RealtimeEventPublisher eventPublisher;
 
     @Override
     public EntryLogDto getEntryLogById(Integer id) {
@@ -123,8 +125,14 @@ public class EntryLogServiceImpl implements IEntryLogService {
         rfid.setCurrentlyUsed(false);
         rfidRepository.save(rfid);
 
+        // Broadcast RFID status change via WebSocket
+        eventPublisher.publishRfidChanged(rfid.getId(), rfid.getRfidCode(), false, rfid.getPs().getId());
+
         EntryLog saved = entryLogRepository.save(active);
         entryLogRepository.flush();
+
+        // Broadcast entry log event via WebSocket
+        eventPublisher.publishVehicleExited(saved.getId(), saved.getLicensePlate(), rfidCode, rfid.getPs().getId());
 
         return toDto(saved);
     }
@@ -160,8 +168,14 @@ public class EntryLogServiceImpl implements IEntryLogService {
         rfid.setCurrentlyUsed(true);
         rfidRepository.save(rfid);
 
+        // Broadcast RFID status change via WebSocket
+        eventPublisher.publishRfidChanged(rfid.getId(), rfid.getRfidCode(), true, rfid.getPs().getId());
+
         EntryLog saved = entryLogRepository.save(entryLog);
         entryLogRepository.flush();
+
+        // Broadcast entry log event via WebSocket
+        eventPublisher.publishVehicleEntered(saved.getId(), saved.getLicensePlate(), rfidCode, rfid.getPs().getId());
 
         return toDto(saved);
     }
