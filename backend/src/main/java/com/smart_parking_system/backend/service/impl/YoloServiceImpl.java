@@ -28,7 +28,7 @@ public class YoloServiceImpl implements IYoloService {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             Map<String, String> requestBody = new HashMap<>();
-            requestBody.put("image", imageBase64);
+            requestBody.put("image_base64", imageBase64);
 
             HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
 

@@ -249,9 +249,24 @@ class ESP32CamSimulator:
         """Simulate capturing and sending image to HTTP endpoint"""
         print(f"\n📸 Simulating image capture for RFID: {rfid_code}")
         
-        # Create a dummy image file if it doesn't exist
-        image_path = Path(__file__).parent / "test_image.jpg"
-        if not image_path.exists():
+        # Look for existing image files in the same directory
+        script_dir = Path(__file__).parent
+        image_path = None
+        image_extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG']
+        
+        # Search for any image file
+        for ext in image_extensions:
+            for img_file in script_dir.glob(f'*{ext}'):
+                if img_file.is_file():
+                    image_path = img_file
+                    print(f"  Found image: {image_path.name}")
+                    break
+            if image_path:
+                break
+        
+        # If no image found, create a minimal test image
+        if not image_path:
+            image_path = script_dir / "test_image.jpg"
             # Create a minimal JPEG (1x1 pixel red image)
             jpeg_data = bytes([
                 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46,
@@ -271,23 +286,37 @@ class ESP32CamSimulator:
             ])
             with open(image_path, 'wb') as f:
                 f.write(jpeg_data)
-            print(f"  Created test image: {image_path}")
+            print(f"  Created test image: {image_path.name}")
+        
+        # Determine MIME type from file extension
+        file_ext = image_path.suffix.lower()
+        if file_ext in ['.png']:
+            mime_type = 'image/png'
+        else:
+            mime_type = 'image/jpeg'
         
         # Send to HTTP endpoint
         if not self.http_endpoint:
             print("  ⚠ No HTTP endpoint configured, using default")
-            self.http_endpoint = "http://localhost:8080/api/camera/upload"
+            self.http_endpoint = "http://localhost:8080/sps/api/entry-logs/upload-image"
             
         try:
             with open(image_path, 'rb') as img_file:
-                files = {'image': ('camera_capture.jpg', img_file, 'image/jpeg')}
-                data = {'rfidCode': rfid_code}
+                # Prepare multipart form-data with image
+                files = {'image': (image_path.name, img_file, mime_type)}
                 
-                print(f"  Sending image to {self.http_endpoint}")
+                # Add rfidCode as query parameter
+                params = {'rfidCode': rfid_code}
+                
+                # Add headers
+                headers = {'accept': '*/*'}
+                
+                print(f"  Sending image to {self.http_endpoint}?rfidCode={rfid_code}")
                 response = requests.post(
                     self.http_endpoint,
                     files=files,
-                    data=data,
+                    params=params,
+                    headers=headers,
                     timeout=10
                 )
                 
