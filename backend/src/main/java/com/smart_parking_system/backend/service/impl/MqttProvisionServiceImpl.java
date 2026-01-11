@@ -28,15 +28,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Handles device provisioning via MQTT.
- * 
- * Topic Structure:
- * - Request: sps/{mqttUsername}/provision/request
- * - Response: sps/{mqttUsername}/provision/response
- * 
- * Where mqttUsername = {ownerUsername}_{mcCode}
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smart_parking_system.backend.dto.mqtt.MqttDoorControlDto;
 import com.smart_parking_system.backend.dto.mqtt.MqttExitRequestDto;
 import com.smart_parking_system.backend.service.IEntryLogService;
+import com.smart_parking_system.backend.util.MqttTopicUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,12 +15,6 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles MQTT exit gate requests.
- * 
- * Topic: sps/{mqttUsername}/exit/request
- * Where mqttUsername = {ownerUsername}_{mcCode}
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -47,20 +42,19 @@ public class MqttExitRequestHandler {
                 payload = payloadObj != null ? payloadObj.toString() : null;
             }
 
-            // Only handle exit requests
-            if (!MqttTopicUtils.topicEndsWith(topic, "/exit/request")) {
+            if (!MqttTopicUtil.topicEndsWith(topic, "/exit/request")) {
                 return;
             }
 
             log.info("Received exit request from topic: {}", topic);
 
-            if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
+            if (!MqttTopicUtil.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
                 log.error("Invalid topic format: {}", topic);
                 return;
             }
 
-            String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
-            String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+            String mqttUsername = MqttTopicUtil.extractMqttUsername(topic);
+            String mcCode = MqttTopicUtil.extractMcCode(mqttUsername);
 
             if (mcCode == null) {
                 log.error("Could not extract mcCode from mqttUsername: {}", mqttUsername);
@@ -84,7 +78,7 @@ public class MqttExitRequestHandler {
         try {
             MqttDoorControlDto doorCommand = new MqttDoorControlDto(commandType, command);
             String payload = objectMapper.writeValueAsString(doorCommand);
-            String topic = MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "command");
+            String topic = MqttTopicUtil.buildTopic(baseTopic, mqttUsername, "command");
 
             mqttOutboundChannel.send(
                     MessageBuilder.withPayload(payload)

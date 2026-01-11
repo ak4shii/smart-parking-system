@@ -22,11 +22,6 @@ public class MicrocontrollerController {
 
     private final IMicrocontrollerService microcontrollerService;
 
-    /**
-     * Create a new microcontroller and generate MQTT credentials.
-     * The MQTT credentials (including password) are returned ONLY in this response.
-     * Store them securely - the password cannot be retrieved again.
-     */
     @PostMapping
     public ResponseEntity<?> createMicrocontroller(@Valid @RequestBody CreateMicrocontrollerRequestDto requestDto) {
         try {
@@ -91,16 +86,6 @@ public class MicrocontrollerController {
         }
     }
 
-    // ==================== MQTT Credential Management ====================
-
-    /**
-     * Regenerate MQTT credentials for a device.
-     * Use this when credentials are compromised or need rotation.
-     * Old credentials are immediately revoked.
-     * 
-     * @param id The microcontroller ID
-     * @return New MQTT credentials (password shown once)
-     */
     @PostMapping("/{id}/mqtt/regenerate")
     public ResponseEntity<?> regenerateMqttCredentials(@PathVariable Integer id) {
         try {
@@ -117,12 +102,6 @@ public class MicrocontrollerController {
         }
     }
 
-    /**
-     * Revoke MQTT access for a device without deleting it.
-     * The device will no longer be able to connect to MQTT broker.
-     * 
-     * @param id The microcontroller ID
-     */
     @PostMapping("/{id}/mqtt/revoke")
     public ResponseEntity<?> revokeMqttCredentials(@PathVariable Integer id) {
         try {

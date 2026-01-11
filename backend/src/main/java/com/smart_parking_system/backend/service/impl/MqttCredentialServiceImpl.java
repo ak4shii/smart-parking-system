@@ -15,10 +15,6 @@ import java.io.*;
 import java.security.SecureRandom;
 import java.util.Base64;
 
-/**
- * Implementation of MQTT credential management service.
- * Generates secure credentials and syncs with Mosquitto broker.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,29 +33,23 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
     @Value("${mqtt.base-topic:sps}")
     private String baseTopic;
 
-    // Path to Mosquitto password file (configurable for Docker/local environments)
     @Value("${mqtt.password-file:/mosquitto/config/passwords}")
     private String mosquittoPasswordFile;
 
     @Override
     @Transactional
     public MqttCredentialsResponseDto generateCredentials(Microcontroller mc, String ownerUsername) {
-        // Generate MQTT username: {ownerUsername}_{mcCode}
         String mqttUsername = ownerUsername + "_" + mc.getMcCode();
 
-        // Generate secure random password (24 bytes = 32 chars base64)
         String plainPassword = generateSecurePassword();
 
-        // Hash password for storage
         String passwordHash = passwordEncoder.encode(plainPassword);
 
-        // Update microcontroller entity
         mc.setMqttUsername(mqttUsername);
         mc.setMqttPasswordHash(passwordHash);
         mc.setMqttEnabled(true);
         microcontrollerRepository.save(mc);
 
-        // Sync to Mosquitto password file
         syncToMosquitto(mqttUsername, plainPassword);
 
         log.info("Generated MQTT credentials for device: {} with username: {}", mc.getMcCode(), mqttUsername);
@@ -70,12 +60,10 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
     @Override
     @Transactional
     public MqttCredentialsResponseDto regenerateCredentials(Microcontroller mc, String ownerUsername) {
-        // Remove old credentials from Mosquitto if exists
         if (mc.getMqttUsername() != null) {
             removeFromMosquitto(mc.getMqttUsername());
         }
 
-        // Generate new credentials
         return generateCredentials(mc, ownerUsername);
     }
 
@@ -96,8 +84,6 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
     @Override
     public boolean syncToMosquitto(String mqttUsername, String plainPassword) {
         try {
-            // Use mosquitto_passwd tool to add/update user
-            // -b flag for batch mode (password from command line)
             ProcessBuilder pb = new ProcessBuilder(
                     "docker", "exec", "sps-mosquitto",
                     "mosquitto_passwd", "-b", mosquittoPasswordFile, mqttUsername, plainPassword);
@@ -108,7 +94,6 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
             if (exitCode == 0) {
                 log.info("Successfully synced MQTT credentials to Mosquitto for user: {}", mqttUsername);
 
-                // Reload Mosquitto to activate new credentials immediately
                 if (reloadMosquitto()) {
                     log.info("Mosquitto reloaded - credentials active for user: {}", mqttUsername);
                 } else {
@@ -117,7 +102,6 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
 
                 return true;
             } else {
-                // Read error output
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     String line;
                     StringBuilder error = new StringBuilder();
@@ -130,8 +114,6 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
             }
         } catch (IOException | InterruptedException e) {
             log.error("Error syncing MQTT credentials to Mosquitto: {}", e.getMessage());
-            // Don't fail the operation - credentials are still in database
-            // Manual sync can be done later
             return false;
         }
     }
@@ -139,8 +121,6 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
     @Override
     public boolean removeFromMosquitto(String mqttUsername) {
         try {
-            // Use mosquitto_passwd tool to delete user
-            // -D flag for delete
             ProcessBuilder pb = new ProcessBuilder(
                     "docker", "exec", "sps-mosquitto",
                     "mosquitto_passwd", "-D", mosquittoPasswordFile, mqttUsername);
@@ -150,8 +130,6 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 log.info("Successfully removed MQTT user from Mosquitto: {}", mqttUsername);
-
-                // Reload Mosquitto to deactivate removed credentials immediately
                 if (reloadMosquitto()) {
                     log.info("Mosquitto reloaded - credentials revoked for user: {}", mqttUsername);
                 } else {
@@ -170,16 +148,8 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
         }
     }
 
-    /**
-     * Reload Mosquitto configuration by sending SIGHUP signal.
-     * This achieves graceful reload without disconnecting active clients.
-     * 
-     * @return true if reload was successful, false otherwise
-     */
     private boolean reloadMosquitto() {
         try {
-            // Send SIGHUP signal to Mosquitto container
-            // This causes Mosquitto to reload config files without full restart
             ProcessBuilder pb = new ProcessBuilder(
                     "docker", "kill", "--signal=HUP", "sps-mosquitto");
             pb.redirectErrorStream(true);
@@ -190,7 +160,6 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
                 log.info("Successfully sent SIGHUP signal to Mosquitto - configuration reloaded");
                 return true;
             } else {
-                // Read error output
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     String line;
                     StringBuilder error = new StringBuilder();
@@ -204,7 +173,7 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
         } catch (IOException | InterruptedException e) {
             log.error("Error sending SIGHUP signal to Mosquitto: {}", e.getMessage());
             if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt(); // Restore interrupt status
+                Thread.currentThread().interrupt();
             }
             return false;
         }
@@ -219,37 +188,28 @@ public class MqttCredentialServiceImpl implements IMqttCredentialService {
             throw new RuntimeException("MQTT credentials not generated for device: " + mcCode);
         }
 
-        // Verify ownership by checking username prefix
         String expectedPrefix = ownerUsername + "_";
         if (!mc.getMqttUsername().startsWith(expectedPrefix)) {
             throw new RuntimeException("Access denied: Device does not belong to user");
         }
 
-        // Return info without password (password is only shown once during generation)
         return MqttCredentialsResponseDto.builder()
                 .mqttHost(mqttBrokerHost)
                 .mqttPort(mqttBrokerPort)
                 .mqttUsername(mc.getMqttUsername())
-                .mqttPassword(null) // Never return stored password
+                .mqttPassword(null)
                 .baseTopic(baseTopic + "/" + mc.getMqttUsername())
                 .mcCode(mc.getMcCode())
                 .deviceName(mc.getName())
                 .build();
     }
 
-    /**
-     * Generate a cryptographically secure random password.
-     * Uses 24 random bytes encoded as Base64 (32 characters).
-     */
     private String generateSecurePassword() {
         byte[] randomBytes = new byte[24];
         secureRandom.nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 
-    /**
-     * Build the credentials response DTO.
-     */
     private MqttCredentialsResponseDto buildCredentialsResponse(
             Microcontroller mc, String mqttUsername, String plainPassword) {
         return MqttCredentialsResponseDto.builder()

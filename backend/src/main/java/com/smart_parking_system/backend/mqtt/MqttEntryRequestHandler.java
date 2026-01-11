@@ -5,6 +5,7 @@ import com.smart_parking_system.backend.dto.mqtt.MqttCameraCommandDto;
 import com.smart_parking_system.backend.dto.mqtt.MqttDoorControlDto;
 import com.smart_parking_system.backend.dto.mqtt.MqttEntryRequestDto;
 import com.smart_parking_system.backend.service.IEntryLogService;
+import com.smart_parking_system.backend.util.MqttTopicUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,12 +16,6 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles MQTT entry gate requests.
- * 
- * Topic: sps/{mqttUsername}/entry/request
- * Where mqttUsername = {ownerUsername}_{mcCode}
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -50,18 +45,17 @@ public class MqttEntryRequestHandler {
 
             log.info("Received entry request from topic: {}", topic);
 
-            // Skip if not an entry request (exit requests also come to this channel)
-            if (!MqttTopicUtils.topicEndsWith(topic, "/entry/request")) {
+            if (!MqttTopicUtil.topicEndsWith(topic, "/entry/request")) {
                 return;
             }
 
-            if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
+            if (!MqttTopicUtil.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
                 log.error("Invalid topic format: {}", topic);
                 return;
             }
 
-            String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
-            String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+            String mqttUsername = MqttTopicUtil.extractMqttUsername(topic);
+            String mcCode = MqttTopicUtil.extractMcCode(mqttUsername);
 
             if (mcCode == null) {
                 log.error("Could not extract mcCode from mqttUsername: {}", mqttUsername);
@@ -87,7 +81,7 @@ public class MqttEntryRequestHandler {
         try {
             MqttCameraCommandDto command = new MqttCameraCommandDto("camera", "snap", rfidCode);
             String payload = objectMapper.writeValueAsString(command);
-            String topic = MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "camera");
+            String topic = MqttTopicUtil.buildTopic(baseTopic, mqttUsername, "camera");
 
             mqttOutboundChannel.send(
                     MessageBuilder.withPayload(payload)
@@ -104,7 +98,7 @@ public class MqttEntryRequestHandler {
         try {
             MqttDoorControlDto doorCommand = new MqttDoorControlDto(commandType, command);
             String payload = objectMapper.writeValueAsString(doorCommand);
-            String topic = MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "command");
+            String topic = MqttTopicUtil.buildTopic(baseTopic, mqttUsername, "command");
 
             mqttOutboundChannel.send(
                     MessageBuilder.withPayload(payload)

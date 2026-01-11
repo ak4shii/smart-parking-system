@@ -44,7 +44,6 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> apiLogin(@RequestBody LoginRequestDto loginRequestDto) {
-        // Add debug log to verify if controller is reached
         System.out.println("DEBUG: AuthController.apiLogin reached for email: " + loginRequestDto.email());
 
         try {
@@ -107,16 +106,11 @@ public class AuthController {
         userRepository.save(user);
         userRepository.flush();
 
-        // Note: Web users don't get MQTT credentials directly.
-        // MQTT credentials are generated per-device when microcontrollers are
-        // registered.
-        // This provides better security isolation between devices.
-
         RegisterResponseDto response = new RegisterResponseDto(
                 "Register successfully",
-                null, // mqttUsername - devices get their own credentials
-                null, // mqttPassword - devices get their own credentials
-                null); // mqttBrokerUri - provided when device is registered
+                null,
+                null,
+                null);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

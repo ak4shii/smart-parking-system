@@ -19,19 +19,7 @@ public interface IMicrocontrollerService {
 
     void deleteMicrocontroller(Integer id);
 
-    /**
-     * Regenerate MQTT credentials for a device.
-     * Old credentials will be revoked and new ones generated.
-     *
-     * @param id The microcontroller ID
-     * @return New MQTT credentials (password shown once)
-     */
     MqttCredentialsResponseDto regenerateMqttCredentials(Integer id);
 
-    /**
-     * Revoke MQTT access for a device without deleting it.
-     *
-     * @param id The microcontroller ID
-     */
     void revokeMqttCredentials(Integer id);
 }

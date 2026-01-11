@@ -3,6 +3,7 @@ package com.smart_parking_system.backend.mqtt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smart_parking_system.backend.dto.mqtt.MqttProvisionRequestDto;
 import com.smart_parking_system.backend.service.IMqttProvisionService;
+import com.smart_parking_system.backend.util.MqttTopicUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,12 +12,6 @@ import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles MQTT device provisioning requests.
- * 
- * Topic: sps/{mqttUsername}/provision/request
- * Where mqttUsername = {ownerUsername}_{mcCode}
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -51,16 +46,16 @@ public class MqttProvisionHandler {
             }
             log.info(">>> Payload Content: {}", payload);
 
-            if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
+            if (!MqttTopicUtil.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
                 log.error("Invalid provision topic format: {}", topic);
                 return;
             }
 
-            String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
+            String mqttUsername = MqttTopicUtil.extractMqttUsername(topic);
             log.info(">>> Extracted mqttUsername: {}", mqttUsername);
 
-            String ownerUsername = MqttTopicUtils.extractOwnerUsername(mqttUsername);
-            String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+            String ownerUsername = MqttTopicUtil.extractOwnerUsername(mqttUsername);
+            String mcCode = MqttTopicUtil.extractMcCode(mqttUsername);
             log.info(">>> Extracted owner: {}, mcCode: {}", ownerUsername, mcCode);
 
             if (mcCode == null || ownerUsername == null) {

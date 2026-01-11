@@ -37,7 +37,6 @@ public class MqttSensorServiceImpl implements IMqttSensorService {
             slot.setIsOccupied(status.getIsOccupied());
             slotRepository.save(slot);
 
-            // Broadcast slot status change via WebSocket for real-time UI updates
             if (slot.getPs() != null) {
                 eventPublisher.publishSlotChanged(slot.getId(), slot.getIsOccupied(), slot.getPs().getId());
             }
@@ -49,7 +48,6 @@ public class MqttSensorServiceImpl implements IMqttSensorService {
 
         SensorDto sensorDto = toDto(saved);
 
-        // Broadcast update via WebSocket
         messagingTemplate.convertAndSend("/topic/sensors", sensorDto);
 
         return sensorDto;

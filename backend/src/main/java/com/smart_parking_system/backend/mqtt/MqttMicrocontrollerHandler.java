@@ -1,26 +1,16 @@
 package com.smart_parking_system.backend.mqtt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.smart_parking_system.backend.dto.MicrocontrollerDto;
 import com.smart_parking_system.backend.dto.mqtt.MqttStatusRequestDto;
-import com.smart_parking_system.backend.dto.mqtt.MqttStatusResponseDto;
 import com.smart_parking_system.backend.service.IMqttMicrocontrollerService;
+import com.smart_parking_system.backend.util.MqttTopicUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles MQTT microcontroller status updates.
- * 
- * Topic: sps/{mqttUsername}/status
- * Where mqttUsername = {ownerUsername}_{mcCode}
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -30,10 +20,6 @@ public class MqttMicrocontrollerHandler {
 
     private final IMqttMicrocontrollerService mqttMicrocontrollerService;
     private final ObjectMapper objectMapper;
-    private final MessageChannel mqttOutboundChannel;
-
-    @Value("${mqtt.base-topic}")
-    private String baseTopic;
 
     @ServiceActivator(inputChannel = "mqttMicrocontrollerInputChannel")
     public void handleStatusMessage(Message<?> message) {
@@ -48,13 +34,13 @@ public class MqttMicrocontrollerHandler {
             return;
         }
 
-        if (!MqttTopicUtils.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
+        if (!MqttTopicUtil.hasMinimumParts(topic, MIN_TOPIC_PARTS)) {
             log.debug("Topic has insufficient parts, ignoring: {}", topic);
             return;
         }
 
-        String mqttUsername = MqttTopicUtils.extractMqttUsername(topic);
-        String mcCode = MqttTopicUtils.extractMcCode(mqttUsername);
+        String mqttUsername = MqttTopicUtil.extractMqttUsername(topic);
+        String mcCode = MqttTopicUtil.extractMcCode(mqttUsername);
 
         if (mcCode == null) {
             log.error("Could not extract mcCode from mqttUsername: {}", mqttUsername);
@@ -64,28 +50,11 @@ public class MqttMicrocontrollerHandler {
         String payload = extractPayload(message);
 
         try {
-            handleStatus(mqttUsername, mcCode, payload);
+            MqttStatusRequestDto request = objectMapper.readValue(payload, MqttStatusRequestDto.class);
+            mqttMicrocontrollerService.handleStatus(mcCode, request);
+            log.debug("Processed status update for mcCode: {}", mcCode);
         } catch (Exception ex) {
-            log.error("Error processing microcontroller status message. Topic: {}, mcCode: {}", topic, mcCode, ex);
-            handleErrorResponse(mqttUsername, ex);
-        }
-    }
-
-    private void handleStatus(String mqttUsername, String mcCode, String payload) throws Exception {
-        MqttStatusRequestDto request = objectMapper.readValue(payload, MqttStatusRequestDto.class);
-        MicrocontrollerDto microcontrollerDto = mqttMicrocontrollerService.handleStatus(mcCode, request);
-
-        MqttStatusResponseDto response = new MqttStatusResponseDto(true, "OK", microcontrollerDto.getId());
-        publishResponse(MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "status/response"), response);
-        log.debug("Processed status update for mcCode: {}", mcCode);
-    }
-
-    private void handleErrorResponse(String mqttUsername, Exception ex) {
-        try {
-            MqttStatusResponseDto errorResponse = new MqttStatusResponseDto(false, ex.getMessage(), null);
-            publishResponse(MqttTopicUtils.buildTopic(baseTopic, mqttUsername, "status/response"), errorResponse);
-        } catch (Exception e) {
-            log.error("Failed to send error response for mqttUsername: {}", mqttUsername, e);
+            log.error("Error processing microcontroller status. Topic: {}, mcCode: {}", topic, mcCode, ex);
         }
     }
 
@@ -100,13 +69,5 @@ public class MqttMicrocontrollerHandler {
             return new String((byte[]) payload);
         }
         return payload != null ? payload.toString() : null;
-    }
-
-    private void publishResponse(String topic, Object payload) throws Exception {
-        String json = objectMapper.writeValueAsString(payload);
-        mqttOutboundChannel.send(
-                MessageBuilder.withPayload(json)
-                        .setHeader(MqttHeaders.TOPIC, topic)
-                        .build());
     }
 }
