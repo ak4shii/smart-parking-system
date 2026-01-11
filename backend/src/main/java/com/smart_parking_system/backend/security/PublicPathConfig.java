@@ -13,6 +13,7 @@ public class PublicPathConfig {
         return List.of(
                 "/api/auth/**",
                 "/api/csrf-token",
+                "/api/entry-logs/upload-image",
                 "/swagger-ui.html",
                 "/v3/api-docs/**",
                 "/swagger-resources/**",

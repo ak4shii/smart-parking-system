@@ -19,7 +19,7 @@ public class YoloServiceImpl implements IYoloService {
 
     private final RestTemplate restTemplate;
 
-    @Value("${yolo.server.url:http://100.121.164.7:8000/upload}")
+    @Value("${yolo.server.url:http://100.93.49.32:8000/upload}")
     private String yoloServerUrl;
 
     public String detectLicensePlate(String imageBase64) {
@@ -28,7 +28,7 @@ public class YoloServiceImpl implements IYoloService {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             Map<String, String> requestBody = new HashMap<>();
-            requestBody.put("image", imageBase64);
+            requestBody.put("image_base64", imageBase64);
 
             HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
 

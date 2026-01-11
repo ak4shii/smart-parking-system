@@ -37,8 +37,18 @@ services:
       - ./backend/mosquitto/config:/mosquitto/config
       - ./backend/mosquitto/data:/mosquitto/data
       - ./backend/mosquitto/log:/mosquitto/log
+      - ./backend/mosquitto/passwords:/mosquitto/config/passwords_vol
     networks:
       - sps-network
+    command: >
+      sh -c "
+        if [ ! -f /mosquitto/config/passwords ]; then
+          touch /mosquitto/config/passwords;
+          mosquitto_passwd -b /mosquitto/config/passwords sps-backend $${MQTT_BACKEND_PASSWORD:-changeme_in_production};
+          chown mosquitto:mosquitto /mosquitto/config/passwords;
+        fi &&
+        /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+      "
 
   # Backend Spring Boot Application
   backend:
@@ -58,7 +68,7 @@ services:
       # MQTT configuration
       MQTT_BROKER_URI: tcp://mosquitto:1883
       MQTT_USERNAME: sps-backend
-      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-sps_backend_secret}
+      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-changeme_in_production}
       MQTT_PASSWORD_FILE_PATH: /mosquitto/config/passwords
       MQTT_PUBLIC_HOST: ${MQTT_PUBLIC_HOST:-localhost}
       MQTT_PUBLIC_PORT: ${MQTT_PUBLIC_PORT:-1883}

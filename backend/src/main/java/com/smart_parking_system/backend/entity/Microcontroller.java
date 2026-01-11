@@ -41,7 +41,6 @@ public class Microcontroller {
     @JoinColumn(name = "ps_id", nullable = false)
     private ParkingSpace ps;
 
-    // MQTT Security Fields
     @Column(name = "mqtt_username", unique = true)
     private String mqttUsername;
 
