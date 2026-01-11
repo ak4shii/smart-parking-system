@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Gauge, KeyRound, LayoutDashboard, LogOut, ParkingSquare, Radio, ShieldCheck, ChevronDown, DoorOpen, Monitor } from 'lucide-react';
+import { Car, Gauge, KeyRound, LayoutDashboard, LogOut, ParkingSquare, Radio, ShieldCheck, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import OccupancyGrid from '../components/home/OccupancyGrid';
@@ -9,6 +9,7 @@ import StatCard from '../components/home/StatCard';
 import { useAuth } from '../context/AuthContext';
 import slotService, { type SlotDto } from '../services/slotService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
+import entryLogService from '../services/entryLogService';
 import { useWebSocket } from '../services/websocket';
 
 interface SlotDisplay {
@@ -36,10 +37,47 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  // Clear activities when parking space changes
+  // Load recent entry logs and save to localStorage when parking space changes
   useEffect(() => {
-    setActivities([]);
+    const loadRecentActivities = async () => {
+      if (selectedParkingSpaceId) {
+        localStorage.setItem('selectedParkingSpaceId', String(selectedParkingSpaceId));
+        try {
+          const logs = await entryLogService.getEntryLogsByParkingSpace(selectedParkingSpaceId);
+          // Sort by inTime descending and take 5 most recent
+          const recentLogs = logs
+            .sort((a, b) => new Date(b.inTime).getTime() - new Date(a.inTime).getTime())
+            .slice(0, 5);
+
+          const recentActivities: Activity[] = recentLogs.map((log) => {
+            const isInside = !log.outTime;
+            return {
+              eventId: log.id,
+              label: isInside ? 'Vehicle entered' : 'Vehicle exited',
+              value: `License: ${log.licensePlate}`,
+              time: formatTimeAgo(new Date(isInside ? log.inTime : log.outTime!).getTime()),
+              timestamp: new Date(isInside ? log.inTime : log.outTime!).getTime(),
+            };
+          });
+          setActivities(recentActivities);
+        } catch (error) {
+          console.error('Error loading recent activities:', error);
+          setActivities([]);
+        }
+      } else {
+        setActivities([]);
+      }
+    };
+    loadRecentActivities();
   }, [selectedParkingSpaceId]);
+
+  const formatTimeAgo = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
 
   // Fetch parking spaces and slots on mount
   // Fetch parking spaces and slots on mount
@@ -64,8 +102,17 @@ export default function HomePage() {
 
         setAllSlots(transformedSlots);
 
-        // Auto-select first parking space if available
-        if (parkingSpacesData.length > 0) {
+        // Auto-select from localStorage or first parking space
+        const savedParkingSpaceId = localStorage.getItem('selectedParkingSpaceId');
+        if (savedParkingSpaceId) {
+          const savedId = Number(savedParkingSpaceId);
+          const exists = parkingSpacesData.some(ps => ps.id === savedId);
+          if (exists) {
+            setSelectedParkingSpaceId(savedId);
+          } else if (parkingSpacesData.length > 0) {
+            setSelectedParkingSpaceId(parkingSpacesData[0].id);
+          }
+        } else if (parkingSpacesData.length > 0) {
           setSelectedParkingSpaceId(parkingSpacesData[0].id);
         }
       } catch (error: any) {
@@ -84,6 +131,7 @@ export default function HomePage() {
   // Subscribe to real-time slot updates
   useEffect(() => {
     const unsubscribe = subscribe('/topic/overview_updates', (event: any) => {
+      console.log('[WebSocket] Received slot update event:', event);
       if (event?.type !== 'slot_changed') return;
 
       // Backend sends slotId as number; our UI stores id as `S-<number>`
@@ -92,9 +140,9 @@ export default function HomePage() {
         prev.map((s) =>
           s.id === slotKey
             ? {
-                ...s,
-                occupied: Boolean(event.isOccupied),
-              }
+              ...s,
+              occupied: Boolean(event.isOccupied),
+            }
             : s,
         ),
       );
@@ -159,32 +207,32 @@ export default function HomePage() {
 
   const slots = selectedParkingSpaceId
     ? (() => {
-        const filtered = allSlots
-          .filter((slot) => slot.parkingSpaceId === selectedParkingSpaceId)
-          .slice()
-          .sort(
-            (a, b) =>
-              parseInt(a.id.replace('S-', ''), 10) -
-              parseInt(b.id.replace('S-', ''), 10),
-          );
-
-        // Map display labels so that the lowest slot id in this parking space becomes S01, then S02...
-        return filtered.map((slot, idx) => ({
-          ...slot,
-          label: `S${String(idx + 1).padStart(2, '0')}`,
-        }));
-      })()
-    : allSlots
+      const filtered = allSlots
+        .filter((slot) => slot.parkingSpaceId === selectedParkingSpaceId)
         .slice()
         .sort(
           (a, b) =>
-            parseInt(a.id.replace('S-', ''), 10) - parseInt(b.id.replace('S-', ''), 10),
-        )
-        .map((slot) => ({
-          ...slot,
-          // When no parking space is selected, show global numbering by real id
-          label: `S${String(parseInt(slot.id.replace('S-', ''), 10)).padStart(2, '0')}`,
-        }));
+            parseInt(a.id.replace('S-', ''), 10) -
+            parseInt(b.id.replace('S-', ''), 10),
+        );
+
+      // Map display labels so that the lowest slot id in this parking space becomes S01, then S02...
+      return filtered.map((slot, idx) => ({
+        ...slot,
+        label: `S${String(idx + 1).padStart(2, '0')}`,
+      }));
+    })()
+    : allSlots
+      .slice()
+      .sort(
+        (a, b) =>
+          parseInt(a.id.replace('S-', ''), 10) - parseInt(b.id.replace('S-', ''), 10),
+      )
+      .map((slot) => ({
+        ...slot,
+        // When no parking space is selected, show global numbering by real id
+        label: `S${String(parseInt(slot.id.replace('S-', ''), 10)).padStart(2, '0')}`,
+      }));
 
   const total = slots.length;
   const occupied = slots.filter((s) => s.occupied).length;
@@ -242,20 +290,6 @@ export default function HomePage() {
             >
               <KeyRound className="h-4 w-4" />
               <span>RFID</span>
-            </button>
-            <button
-              onClick={() => navigate('/doors')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <DoorOpen className="h-4 w-4" />
-              <span>Doors</span>
-            </button>
-            <button
-              onClick={() => navigate('/lcds')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <Monitor className="h-4 w-4" />
-              <span>LCDs</span>
             </button>
             <button
               onClick={() => navigate('/admin')}
@@ -419,20 +453,6 @@ export default function HomePage() {
                   ))
                 )}
               </div>
-
-              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-xs font-semibold text-slate-700">Account</div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                  <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
-                    <div className="text-[11px] text-slate-500">Role</div>
-                    <div className="mt-1 font-semibold text-slate-900">{user?.role ?? '—'}</div>
-                  </div>
-                  <div className="rounded-lg bg-white p-2 ring-1 ring-slate-200">
-                    <div className="text-[11px] text-slate-500">Status</div>
-                    <div className="mt-1 font-semibold text-slate-900">{user?.enabled ? 'Active' : 'Disabled'}</div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -442,5 +462,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-

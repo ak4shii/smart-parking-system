@@ -77,6 +77,7 @@ export default function DoorPage() {
     if (!selectedParkingSpaceId) return;
 
     const unsubscribe = subscribe('/topic/door_updates', (event: any) => {
+      console.log('[WebSocket] Door update received:', event);
       // Only process events for the currently selected parking space
       if (event?.type === 'door_changed' && event.parkingSpaceId === selectedParkingSpaceId) {
         // Update the door in the list
@@ -87,7 +88,7 @@ export default function DoorPage() {
               : door
           )
         );
-        
+
         // Show toast notification
         const status = event.isOpened ? 'opened' : 'closed';
         toast.success(`Door "${event.doorName}" ${status}`);

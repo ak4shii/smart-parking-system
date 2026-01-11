@@ -32,6 +32,13 @@ export interface RegisterErrorResponse {
   username?: string;
 }
 
+export interface RegisterResponse {
+  message: string;
+  mqttUsername?: string | null;
+  mqttPassword?: string | null;
+  mqttBrokerUri?: string | null;
+}
+
 class AuthService {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await api.post<LoginResponse>('/api/auth/login', credentials);
@@ -45,13 +52,20 @@ class AuthService {
   }
 
   async register(userData: RegisterRequest): Promise<string> {
-    const response = await api.post<string | RegisterErrorResponse>('/api/auth/register', userData);
+    try {
+      // Backend returns RegisterResponseDto object with message field
+      const response = await api.post<RegisterResponse>('/api/auth/register', userData);
 
-    if (typeof response.data === 'string') {
-      return response.data;
+      // Return success message from response
+      return response.data.message || 'Registration successful!';
+    } catch (error: any) {
+      // Handle validation errors (email/username/password fields)
+      if (error.response?.data && typeof error.response.data === 'object') {
+        throw error.response.data;
+      }
+      // Re-throw other errors
+      throw error;
     }
-
-    throw response.data;
   }
 
   logout(): void {

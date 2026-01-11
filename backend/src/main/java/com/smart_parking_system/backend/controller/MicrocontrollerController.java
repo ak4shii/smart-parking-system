@@ -2,6 +2,7 @@ package com.smart_parking_system.backend.controller;
 
 import com.smart_parking_system.backend.dto.CreateMicrocontrollerRequestDto;
 import com.smart_parking_system.backend.dto.MicrocontrollerDto;
+import com.smart_parking_system.backend.dto.MqttCredentialsResponseDto;
 import com.smart_parking_system.backend.dto.UpdateMicrocontrollerRequestDto;
 import com.smart_parking_system.backend.service.IMicrocontrollerService;
 import jakarta.validation.Valid;
@@ -24,8 +25,8 @@ public class MicrocontrollerController {
     @PostMapping
     public ResponseEntity<?> createMicrocontroller(@Valid @RequestBody CreateMicrocontrollerRequestDto requestDto) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(microcontrollerService.createMicrocontroller(requestDto));
+            MicrocontrollerDto result = microcontrollerService.createMicrocontroller(requestDto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(result);
         } catch (RuntimeException e) {
             Map<String, String> errorResponse = new HashMap<>();
             String errorMessage = e.getMessage() != null ? e.getMessage() : "Bad Request";
@@ -82,6 +83,38 @@ public class MicrocontrollerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/{id}/mqtt/regenerate")
+    public ResponseEntity<?> regenerateMqttCredentials(@PathVariable Integer id) {
+        try {
+            MqttCredentialsResponseDto credentials = microcontrollerService.regenerateMqttCredentials(id);
+            return ResponseEntity.ok(credentials);
+        } catch (RuntimeException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage() != null ? e.getMessage() : "Bad Request");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/{id}/mqtt/revoke")
+    public ResponseEntity<?> revokeMqttCredentials(@PathVariable Integer id) {
+        try {
+            microcontrollerService.revokeMqttCredentials(id);
+            return ResponseEntity.ok(Map.of("message", "MQTT credentials revoked successfully"));
+        } catch (RuntimeException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage() != null ? e.getMessage() : "Bad Request");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Internal server error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 }

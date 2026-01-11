@@ -15,7 +15,7 @@ services:
       - sps_postgres_data:/var/lib/postgresql/data
       - ./backend/src/main/resources/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,17 +24,31 @@ services:
 
   # MQTT Broker
   mosquitto:
-    image: eclipse-mosquitto:2
+    build:
+      context: ./backend/mosquitto
+      dockerfile: Dockerfile
     container_name: sps-mosquitto
     restart: unless-stopped
     ports:
       - "1883:1883"
+    environment:
+      MQTT_BACKEND_PASSWORD: ${MQTT_BACKEND_PASSWORD:-sps_backend_secret}
     volumes:
       - ./backend/mosquitto/config:/mosquitto/config
       - ./backend/mosquitto/data:/mosquitto/data
       - ./backend/mosquitto/log:/mosquitto/log
+      - ./backend/mosquitto/passwords:/mosquitto/config/passwords_vol
     networks:
       - sps-network
+    command: >
+      sh -c "
+        if [ ! -f /mosquitto/config/passwords ]; then
+          touch /mosquitto/config/passwords;
+          mosquitto_passwd -b /mosquitto/config/passwords sps-backend $${MQTT_BACKEND_PASSWORD:-changeme_in_production};
+          chown mosquitto:mosquitto /mosquitto/config/passwords;
+        fi &&
+        /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+      "
 
   # Backend Spring Boot Application
   backend:
@@ -52,7 +66,19 @@ services:
       SPRING_DATASOURCE_PASSWORD: admin
 
       # MQTT configuration
-      MQTT_BROKER_URL: tcp://mosquitto:1883
+      MQTT_BROKER_URI: tcp://mosquitto:1883
+      MQTT_USERNAME: sps-backend
+      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-sps_backend_secret}
+      MQTT_PASSWORD_FILE_PATH: /mosquitto/config/passwords
+      MQTT_PUBLIC_HOST: ${MQTT_PUBLIC_HOST:-localhost}
+      MQTT_PUBLIC_PORT: ${MQTT_PUBLIC_PORT:-1883}
+
+      # Security configuration  
+      SECURITY_ENABLED: "true"
+
+      # Logging
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_INTEGRATION_MQTT: DEBUG
+      LOGGING_LEVEL_ORG_ECLIPSE_PAHO_CLIENT_MQTTV3: DEBUG
 
       # --- S3 (presigned GET URLs) ---
       S3_BUCKET_NAME: ${S3_BUCKET_NAME}
@@ -63,6 +89,10 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    volumes:
+      - ./backend/mosquitto/config:/mosquitto/config
+      # Docker socket access for sending SIGHUP signal to Mosquitto
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy

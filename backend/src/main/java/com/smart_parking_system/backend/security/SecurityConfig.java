@@ -1,14 +1,15 @@
 package com.smart_parking_system.backend.security;
 
 import com.smart_parking_system.backend.filter.JWTTokenValidationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
@@ -21,14 +22,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.password.HaveIBeenPwnedRestApiPasswordChecker;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import jakarta.servlet.http.HttpServletResponse;
-import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -39,33 +37,27 @@ public class SecurityConfig {
 
     private final List<String> publicPaths;
 
-    @Value("${security.enabled:true}")
-    private boolean securityEnabled;
-
     @Bean
     @Order(SecurityProperties.BASIC_AUTH_ORDER)
     @ConditionalOnProperty(name = "security.enabled", havingValue = "true", matchIfMissing = true)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        log.info("Configuring security with authentication enabled");
-        return http.csrf((csrfConfig) -> csrfConfig
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                // Disable CSRF for API endpoints since we're using JWT tokens
-                .ignoringRequestMatchers("/api/**"))
-                .cors((corsConfig) -> corsConfig.configurationSource(corsConfigurationSource()))
-                .authorizeHttpRequests((requests) -> {
-                    requests.requestMatchers("/api/**").permitAll();
-                    requests.requestMatchers("/csrf-token").permitAll();
-                    requests.requestMatchers("/ws/**").permitAll();
-                    requests.requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll();
-                    requests.requestMatchers("/v3/api-docs/**").permitAll();
-                    requests.requestMatchers("/swagger-resources/**").permitAll();
+        log.info("Configuring security with authentication and CSRF enabled");
+
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null);
+
+        return http
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(requests -> {
+                    requests.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                    requests.requestMatchers(publicPaths.toArray(String[]::new)).permitAll();
                     requests.requestMatchers("/api/admins/**").hasRole("ADMIN");
                     requests.anyRequest().authenticated();
                 })
                 .addFilterBefore(new JWTTokenValidationFilter(publicPaths), BasicAuthenticationFilter.class)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling((exceptionHandling) -> exceptionHandling
+                .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json");
@@ -84,18 +76,19 @@ public class SecurityConfig {
     @ConditionalOnProperty(name = "security.enabled", havingValue = "false")
     public SecurityFilterChain disabledSecurityFilterChain(HttpSecurity http) throws Exception {
         log.warn(
-                "⚠️ WARNING: Security is DISABLED! All endpoints are publicly accessible. This should NEVER be used in production!");
-        return http.csrf((csrfConfig) -> csrfConfig.disable())
-                .cors((corsConfig) -> corsConfig.configurationSource(corsConfigurationSource()))
-                .authorizeHttpRequests((requests) -> requests.anyRequest().permitAll())
+                "WARNING: Security is DISABLED! All endpoints are publicly accessible. This should NEVER be used in production!");
+
+        return http
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
 
     @Bean
     public AuthenticationManager authenticationManagerBean(AuthenticationProvider authenticationProvider) {
-        var providerManager = new ProviderManager(authenticationProvider);
-        return providerManager;
+        return new ProviderManager(authenticationProvider);
     }
 
     @Bean
@@ -106,10 +99,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(Arrays.asList("*"));
-        config.setAllowedMethods(Arrays.asList("*"));
-        config.setAllowedHeaders(Arrays.asList("*"));
-        config.setExposedHeaders(Arrays.asList("*"));
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "X-XSRF-TOKEN"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

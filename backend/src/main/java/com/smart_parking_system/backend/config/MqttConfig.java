@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.channel.PublishSubscribeChannel;
 import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
@@ -41,6 +42,9 @@ public class MqttConfig {
         options.setUserName(username);
         options.setPassword(password.toCharArray());
         options.setAutomaticReconnect(true);
+        options.setCleanSession(true);
+        options.setConnectionTimeout(30);
+        options.setKeepAliveInterval(60);
         factory.setConnectionOptions(options);
         return factory;
     }
@@ -72,14 +76,14 @@ public class MqttConfig {
 
     @Bean
     public MessageChannel mqttEntryRequestChannel() {
-        return new DirectChannel();
+        return new PublishSubscribeChannel();
     }
 
     @Bean
     public MessageProducer inbound() {
         String[] topics = {
-                baseTopic + "/+/+/entry/request",
-                baseTopic + "/+/+/exit/request"
+                baseTopic + "/+/entry/request",
+                baseTopic + "/+/exit/request"
         };
 
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
@@ -98,7 +102,7 @@ public class MqttConfig {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-status-inbound",
                 mqttClientFactory(),
-                baseTopic + "/+/+/status");
+                baseTopic + "/+/status");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
@@ -111,7 +115,7 @@ public class MqttConfig {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-sensor-inbound",
                 mqttClientFactory(),
-                baseTopic + "/+/+/sensor/status");
+                baseTopic + "/+/sensor/status");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
@@ -124,7 +128,7 @@ public class MqttConfig {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-provision-inbound",
                 mqttClientFactory(),
-                baseTopic + "/+/+/provision/request");
+                baseTopic + "/+/provision/request");
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);

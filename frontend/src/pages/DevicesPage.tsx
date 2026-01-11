@@ -6,8 +6,6 @@ import {
   LayoutDashboard,
   Car,
   KeyRound,
-  DoorOpen,
-  Monitor,
   ShieldCheck,
   ParkingSquare,
   LogOut,
@@ -15,6 +13,7 @@ import {
   Activity,
   Wifi,
   WifiOff,
+  Clock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -22,10 +21,16 @@ import { useAuth } from '../context/AuthContext';
 import sensorService, { type SensorDto } from '../services/sensorService';
 import parkingSpaceService, { type ParkingSpaceDto } from '../services/parkingSpaceService';
 import slotService, { type SlotDto } from '../services/slotService';
-import microcontrollerService, { type MicrocontrollerDto } from '../services/microcontrollerService';
+import microcontrollerService, {
+  type MicrocontrollerDto,
+  type MqttCredentials,
+} from '../services/microcontrollerService';
+import MqttCredentialsDialog from '../components/MqttCredentialsDialog';
+import { useWebSocket } from '../services/websocket';
 
 export default function DevicesPage() {
   const { user, logout } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigate = useNavigate();
   const [allSensors, setAllSensors] = useState<SensorDto[]>([]);
   const [slots, setSlots] = useState<SlotDto[]>([]);
@@ -35,9 +40,42 @@ export default function DevicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // MQTT Credentials dialog state
+  const [mqttCredentials, setMqttCredentials] = useState<MqttCredentials | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+
+  // Save to localStorage when parking space selection changes
+  useEffect(() => {
+    if (selectedParkingSpaceId) {
+      localStorage.setItem('selectedParkingSpaceId', String(selectedParkingSpaceId));
+    }
+  }, [selectedParkingSpaceId]);
+
   useEffect(() => {
     fetchData();
-  }, []);
+
+    // Subscribe to sensor updates (useWebSocket hook handles connection automatically)
+    const unsubscribe = subscribe('/topic/sensors', (updatedSensor: SensorDto) => {
+      console.log('[WebSocket] Received sensor update:', updatedSensor);
+      setAllSensors((prevSensors) => {
+        const index = prevSensors.findIndex((s) => s.id === updatedSensor.id);
+        if (index !== -1) {
+          // Update existing sensor
+          const newSensors = [...prevSensors];
+          newSensors[index] = { ...newSensors[index], ...updatedSensor };
+          return newSensors;
+        } else {
+          // Add new sensor (optional, fits provision flow)
+          return [...prevSensors, updatedSensor];
+        }
+      });
+    });
+
+    return () => {
+      // Cleanup subscription
+      unsubscribe?.();
+    };
+  }, [subscribe]);
 
   const fetchData = async () => {
     try {
@@ -53,8 +91,17 @@ export default function DevicesPage() {
       setSlots(slotsData);
       setMicrocontrollers(microcontrollersData);
 
-      // Auto-select first parking space if available
-      if (parkingSpacesData.length > 0) {
+      // Auto-select from localStorage or first parking space
+      const savedParkingSpaceId = localStorage.getItem('selectedParkingSpaceId');
+      if (savedParkingSpaceId) {
+        const savedId = Number(savedParkingSpaceId);
+        const exists = parkingSpacesData.some(ps => ps.id === savedId);
+        if (exists) {
+          setSelectedParkingSpaceId(savedId);
+        } else if (parkingSpacesData.length > 0) {
+          setSelectedParkingSpaceId(parkingSpacesData[0].id);
+        }
+      } else if (parkingSpacesData.length > 0) {
         setSelectedParkingSpaceId(parkingSpacesData[0].id);
       }
     } catch (error: any) {
@@ -62,6 +109,46 @@ export default function DevicesPage() {
       toast.error('Failed to load sensors');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRegenerateCredentials = async (microcontroller: MicrocontrollerDto) => {
+    if (!confirm(
+      `Regenerate MQTT credentials for "${microcontroller.name}"?\n\n` +
+      `⚠️ WARNING: Old credentials will be immediately revoked!\n` +
+      `The device will disconnect until you update it with new credentials.`
+    )) {
+      return;
+    }
+
+    try {
+      const newCredentials = await microcontrollerService.regenerateMqttCredentials(microcontroller.id);
+      setMqttCredentials(newCredentials);
+      setShowCredentialsDialog(true);
+      toast.success(`Credentials regenerated for ${microcontroller.name}`);
+      await fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error regenerating credentials:', error);
+      toast.error(error.response?.data?.error || 'Failed to regenerate credentials');
+    }
+  };
+
+  const handleRevokeCredentials = async (microcontroller: MicrocontrollerDto) => {
+    if (!confirm(
+      `Revoke MQTT access for "${microcontroller.name}"?\n\n` +
+      `⚠️ WARNING: The device will immediately lose MQTT access!\n` +
+      `You can regenerate credentials later if needed.`
+    )) {
+      return;
+    }
+
+    try {
+      await microcontrollerService.revokeMqttCredentials(microcontroller.id);
+      toast.success(`MQTT access revoked for ${microcontroller.name}`);
+      await fetchData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error revoking credentials:', error);
+      toast.error(error.response?.data?.error || 'Failed to revoke credentials');
     }
   };
 
@@ -108,6 +195,39 @@ export default function DevicesPage() {
   const activeSensors = sensors.filter((s) => getMicrocontrollerStatus(s.microcontrollerId)).length;
   const ultrasonicCount = sensors.filter((s) => s.type === 'ultrasonic').length;
   const infraredCount = sensors.filter((s) => s.type === 'infrared').length;
+
+  // Filter microcontrollers by selected parking space
+  const filteredMicrocontrollers = selectedParkingSpaceId
+    ? microcontrollers.filter((mc) => mc.parkingSpaceId === selectedParkingSpaceId)
+    : microcontrollers;
+
+  // Format uptime to human readable string
+  const formatUptime = (seconds: number) => {
+    if (!seconds || seconds <= 0) return '—';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  // Format last seen timestamp
+  const formatLastSeen = (timestamp: string | null) => {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -158,20 +278,6 @@ export default function DevicesPage() {
             >
               <KeyRound className="h-4 w-4" />
               <span>RFID</span>
-            </button>
-            <button
-              onClick={() => navigate('/doors')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <DoorOpen className="h-4 w-4" />
-              <span>Doors</span>
-            </button>
-            <button
-              onClick={() => navigate('/lcds')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <Monitor className="h-4 w-4" />
-              <span>LCDs</span>
             </button>
             <button
               onClick={() => navigate('/admin')}
@@ -366,8 +472,8 @@ export default function DevicesPage() {
                           <td className="py-4">
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${sensor.type === 'ultrasonic'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-purple-100 text-purple-700'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-purple-100 text-purple-700'
                                 }`}
                             >
                               {sensor.type}
@@ -398,8 +504,118 @@ export default function DevicesPage() {
               </div>
             )}
           </div>
+
+          {/* Microcontrollers Section */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900 mb-5">Microcontrollers & MQTT Management</h2>
+
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-slate-500">Loading microcontrollers...</div>
+              </div>
+            ) : filteredMicrocontrollers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Radio className="h-12 w-12 text-slate-300" />
+                <div className="mt-3 text-slate-900 font-semibold">No Microcontrollers</div>
+                <div className="mt-1 text-sm text-slate-500">
+                  {selectedParkingSpace
+                    ? `${selectedParkingSpace.name} has no microcontrollers`
+                    : 'Create a parking space to add microcontrollers'}
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">ID</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Name</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Code</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Status</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Uptime</th>
+                      <th className="pb-3 text-left text-xs font-semibold text-slate-500">Last Seen</th>
+                      <th className="pb-3 text-right text-xs font-semibold text-slate-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMicrocontrollers.map((mc) => (
+                      <tr key={mc.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-4 text-sm text-slate-600">#{mc.id}</td>
+                        <td className="py-4">
+                          <div className="flex items-center gap-2">
+                            <Radio className="h-4 w-4 text-indigo-600" />
+                            <span className="text-sm font-semibold text-slate-900">{mc.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-4">
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-mono text-slate-700">
+                            {mc.mcCode}
+                          </span>
+                        </td>
+                        <td className="py-4">
+                          {mc.online ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              <Wifi className="h-3 w-3" />
+                              Online
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                              <WifiOff className="h-3 w-3" />
+                              Offline
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4">
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                            {formatUptime(mc.uptimeSec)}
+                          </div>
+                        </td>
+                        <td className="py-4 text-sm text-slate-600">
+                          {formatLastSeen(mc.lastSeen)}
+                        </td>
+                        <td className="py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleRegenerateCredentials(mc)}
+                              disabled={!mc.mqttEnabled}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={mc.mqttEnabled ? "Regenerate MQTT credentials" : "MQTT access revoked - cannot regenerate"}
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                              Regenerate
+                            </button>
+                            <button
+                              onClick={() => handleRevokeCredentials(mc)}
+                              disabled={!mc.mqttEnabled}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={mc.mqttEnabled ? "Revoke MQTT access" : "Already revoked"}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Revoke
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </main>
       </div>
+
+      {/* MQTT Credentials Dialog */}
+      {showCredentialsDialog && mqttCredentials && (
+        <MqttCredentialsDialog
+          credentials={mqttCredentials}
+          onClose={() => {
+            setShowCredentialsDialog(false);
+            setMqttCredentials(null);
+          }}
+        />
+      )}
     </div>
   );
 }

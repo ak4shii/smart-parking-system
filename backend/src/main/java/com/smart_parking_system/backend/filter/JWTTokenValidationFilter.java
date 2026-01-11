@@ -31,7 +31,8 @@ public class JWTTokenValidationFilter extends OncePerRequestFilter {
     private final List<String> publicPaths;
 
     @Override
-    public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         String authHeader = request.getHeader(ApplicationConstants.JWT_HEADER);
         if (null != authHeader && authHeader.startsWith("Bearer ")) {
             try {
@@ -70,8 +71,7 @@ public class JWTTokenValidationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String path = request.getRequestURI();
-        return publicPaths.stream().anyMatch(publicPath ->
-                antPathMatcher.match(publicPath, path));
+        String path = request.getServletPath();
+        return publicPaths.stream().anyMatch(publicPath -> antPathMatcher.match(publicPath, path));
     }
 }

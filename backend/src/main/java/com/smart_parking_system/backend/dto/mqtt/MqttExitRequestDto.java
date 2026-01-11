@@ -1,5 +1,6 @@
 package com.smart_parking_system.backend.dto.mqtt;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,5 +8,6 @@ import lombok.Setter;
 @Setter
 public class MqttExitRequestDto {
 
+    @JsonProperty("rfidCode")
     private String rfidCode;
 }

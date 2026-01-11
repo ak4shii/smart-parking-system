@@ -8,8 +8,6 @@ import {
   ShieldCheck,
   ParkingSquare,
   LogOut,
-  DoorOpen,
-  Monitor,
   ChevronDown,
   Clock,
   LogIn,
@@ -41,6 +39,7 @@ export default function EntryLogPage() {
   useEffect(() => {
     if (selectedParkingSpaceId) {
       fetchEntryLogs(selectedParkingSpaceId);
+      localStorage.setItem('selectedParkingSpaceId', String(selectedParkingSpaceId));
     }
   }, [selectedParkingSpaceId]);
 
@@ -49,6 +48,7 @@ export default function EntryLogPage() {
     if (!selectedParkingSpaceId) return;
 
     const unsubscribe = subscribe('/topic/entrylog_new_events', (event: any) => {
+      console.log('[WebSocket] Entry log event received:', event);
       // Only process events for the currently selected parking space
       if (event?.type === 'entrylog_event' && event.parkingSpaceId === selectedParkingSpaceId) {
         // Refresh the entry logs when a new event occurs
@@ -69,7 +69,18 @@ export default function EntryLogPage() {
     try {
       const data = await parkingSpaceService.getAllParkingSpaces();
       setParkingSpaces(data);
-      if (data.length > 0) {
+
+      // Auto-select from localStorage or first parking space
+      const savedParkingSpaceId = localStorage.getItem('selectedParkingSpaceId');
+      if (savedParkingSpaceId) {
+        const savedId = Number(savedParkingSpaceId);
+        const exists = data.some(ps => ps.id === savedId);
+        if (exists) {
+          setSelectedParkingSpaceId(savedId);
+        } else if (data.length > 0) {
+          setSelectedParkingSpaceId(data[0].id);
+        }
+      } else if (data.length > 0) {
         setSelectedParkingSpaceId(data[0].id);
       }
     } catch (error) {
@@ -185,20 +196,6 @@ export default function EntryLogPage() {
             >
               <KeyRound className="h-4 w-4" />
               <span>RFID</span>
-            </button>
-            <button
-              onClick={() => navigate('/doors')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <DoorOpen className="h-4 w-4" />
-              <span>Doors</span>
-            </button>
-            <button
-              onClick={() => navigate('/lcds')}
-              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
-              <Monitor className="h-4 w-4" />
-              <span>LCDs</span>
             </button>
             <button
               onClick={() => navigate('/admin')}
