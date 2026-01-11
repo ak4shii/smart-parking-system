@@ -1,0 +1,15 @@
+# ===========================================
+# MOSQUITTO ACL - Smart Parking System
+# ===========================================
+
+# Allow authenticated users to read system status
+topic read $SYS/#
+
+# ----- BACKEND ACCESS (Superuser) -----
+# Allow backend to read/write all topics under sps/
+user sps-backend
+topic readwrite sps/#
+
+# ----- DEVICE ACCESS (Pattern-based) -----
+# Device can only access topics matching: sps/{username}/#
+pattern readwrite sps/%u/#

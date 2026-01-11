@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Project
+*.log
+*.gz
+
+mosquitto/data/
+mosquitto/log/*.log
+mosquitto/config/passwords
+mosquitto/data/*.db
+mosquitto/data/*.db*
