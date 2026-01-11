@@ -173,7 +173,6 @@ smart-parking-system/
 │   ├── esp32_mqtt_simulator.py       # ESP32 MQTT simulator
 │   ├── esp32_provision_simulator.py  # Provisioning simulator
 │   ├── Dockerfile                    # Backend Docker image
-│   ├── docker-compose.yml            # PostgreSQL Docker setup
 │   └── pom.xml                       # Maven dependencies
 │
 ├── frontend/                         # React + TypeScript Frontend
