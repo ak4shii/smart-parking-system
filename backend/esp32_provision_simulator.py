@@ -100,6 +100,9 @@ class ESP32Device:
         # LCD display state
         self.lcd_display = "Welcome!"
         
+        # Track active entries (RFIDs that have entered but not exited)
+        self.active_entries = set()
+        
         print_header("ESP32 DEVICE INITIALIZED")
         print(f"Device Name:  {Colors.BOLD}{self.device_name}{Colors.ENDC}")
         print(f"Device Code:  {Colors.BOLD}{self.mc_code}{Colors.ENDC}")
@@ -442,12 +445,21 @@ class ESP32Device:
     
     def _simulate_rfid_entry(self):
         """Simulate RFID card scan at entry gate"""
-        # Pick random RFID card
-        card = random.choice(self.rfid_cards)
+        # Pick a random RFID card that is NOT currently inside
+        available_cards = [c for c in self.rfid_cards if c['code'] not in self.active_entries]
+        
+        if not available_cards:
+            print_warning("   No available RFID cards for entry (all inside)")
+            return False
+        
+        card = random.choice(available_cards)
         
         print(f"\n{Colors.WARNING}🔖 RFID CARD SCANNED (Entry){Colors.ENDC}")
         print(f"   Card: {card['code']}")
         print(f"   Owner: {card['owner']}")
+        
+        # Track this entry
+        self.active_entries.add(card['code'])
         
         # Publish entry request to backend
         topic = f"{self.base_topic}/entry/request"
@@ -457,15 +469,28 @@ class ESP32Device:
         self.client.publish(topic, json.dumps(payload))
         print_success(f"   → Published entry request")
         print_info("   → Waiting for backend response (door command)...")
+        return True
     
     def _simulate_rfid_exit(self):
         """Simulate RFID card scan at exit gate"""
-        # Pick random RFID card
-        card = random.choice(self.rfid_cards)
+        # Only exit RFID cards that have active entries
+        if not self.active_entries:
+            print_warning("   No RFID cards inside to exit")
+            return False
+        
+        # Pick a random RFID card that IS currently inside
+        rfid_code = random.choice(list(self.active_entries))
+        card = next((c for c in self.rfid_cards if c['code'] == rfid_code), None)
+        
+        if not card:
+            return False
         
         print(f"\n{Colors.WARNING}🔖 RFID CARD SCANNED (Exit){Colors.ENDC}")
         print(f"   Card: {card['code']}")
         print(f"   Owner: {card['owner']}")
+        
+        # Remove from active entries
+        self.active_entries.discard(card['code'])
         
         # Publish exit request to backend
         topic = f"{self.base_topic}/exit/request"
@@ -475,6 +500,7 @@ class ESP32Device:
         self.client.publish(topic, json.dumps(payload))
         print_success(f"   → Published exit request")
         print_info("   → Waiting for backend response (door command)...")
+        return True
     
     def _respond_pong(self):
         """Respond to ping command"""
@@ -583,13 +609,14 @@ class ESP32Device:
         
         print_step(2, f"Starting main loop (duration: {duration}s, interval: {interval}s)")
         print_info("Press Ctrl+C to stop")
-        print_info("RFID simulation will trigger every 15 seconds\n")
+        print_info("RFID simulation will trigger every 8 seconds\n")
         
         start_time = time.time()
         last_publish = 0
         last_rfid = 0
-        rfid_interval = 15  # Simulate RFID scan every 15 seconds
+        rfid_interval = 8  # Simulate RFID scan every 8 seconds for faster testing
         rfid_type = "entry"  # Alternate between entry and exit
+        entry_count = 0  # Track entries to ensure we have at least one before exiting
         
         try:
             while (time.time() - start_time) < duration:
@@ -605,8 +632,11 @@ class ESP32Device:
                 # Simulate RFID scan at interval
                 if current_time - last_rfid >= rfid_interval:
                     if rfid_type == "entry":
-                        self._simulate_rfid_entry()
-                        rfid_type = "exit"
+                        if self._simulate_rfid_entry():
+                            entry_count += 1
+                        # Only switch to exit if we have at least one active entry
+                        if self.active_entries:
+                            rfid_type = "exit"
                     else:
                         self._simulate_rfid_exit()
                         rfid_type = "entry"
