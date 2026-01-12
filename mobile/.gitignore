@@ -1,0 +1,20 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
+# Ignore local properties
+local.properties
+
+# Ignore IDE files
+.idea
+*.iml
+
+# Ignore keystore files
+*.jks
+*.keystore
+
+# Ignore generated files
+.externalNativeBuild
+.cxx
